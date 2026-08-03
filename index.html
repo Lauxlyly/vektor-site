@@ -649,8 +649,7 @@ async function runAnalysis(){
   document.getElementById('pfText').textContent=data.what_would_help||'';
 
   // Audit CTA — pass strategy via Paddle/Stripe custom data (placeholder URL for now)
-  const encodedStrat=encodeURIComponent(strategy.slice(0,500));
-  document.getElementById('fullAuditBtn').href=`https://buy.stripe.com/PLACEHOLDER?prefilled_custom_data=${encodedStrat}`;
+  document.getElementById('fullAuditBtn').href='https://buy.stripe.com/test_fZueV5eTw5hN54sgUOak000';
 
   // Share text
   const siteUrl='https://vektor-site-xi.vercel.app';
