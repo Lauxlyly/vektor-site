@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.53.0"
+    "@anthropic-ai/sdk": "^0.53.0",
+    "resend": "^4.0.0"
   }
 }
