@@ -558,24 +558,6 @@ function drawGrid() {
 const lines = document.querySelectorAll('.tl');
 lines.forEach((l,i) => setTimeout(()=>l.classList.add('show'), 600+i*380));
 
-// ── COUNTER ANIMATION ──
-function animCount(el, target, duration) {
-  let start=0, step=target/60;
-  const t = setInterval(()=>{
-    start = Math.min(start+step, target);
-    el.textContent = Math.round(start).toLocaleString();
-    if(start>=target) clearInterval(t);
-  }, duration/60);
-}
-const obs = new IntersectionObserver(entries=>{
-  entries.forEach(e=>{
-    if(e.isIntersecting){
-      animCount(document.getElementById('cnt-strat'), 847, 1500);
-      obs.disconnect();
-    }
-  });
-});
-obs.observe(document.querySelector('.hero-stats'));
 </script>
 
 </body>
