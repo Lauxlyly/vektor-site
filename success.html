@@ -3,49 +3,349 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Payment Confirmed — VEKTOR</title>
+<title>Your VEKTOR Audit — Full Report</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
-.logo{font-family:monospace;font-size:14px;font-weight:800;letter-spacing:4px;background:linear-gradient(135deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:40px;}
-.icon{font-size:56px;margin-bottom:20px;animation:pop .6s cubic-bezier(.16,1,.3,1);}
-@keyframes pop{from{transform:scale(0.5);opacity:0}to{transform:scale(1);opacity:1}}
-h1{font-size:clamp(24px,4vw,36px);font-weight:800;background:linear-gradient(135deg,#fff,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px;}
-.sub{font-size:16px;color:#94a3b8;max-width:440px;line-height:1.7;margin-bottom:32px;}
-.sub em{color:#a78bfa;font-style:normal;}
-.card{background:#0a0a16;border:1px solid rgba(124,58,237,.2);border-radius:14px;padding:24px 28px;max-width:440px;width:100%;margin-bottom:28px;text-align:left;}
-.card-row{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;}
-.card-row:last-child{margin-bottom:0;}
-.cr-icon{font-size:20px;flex-shrink:0;margin-top:2px;}
-.cr-text{font-size:13px;color:#94a3b8;line-height:1.6;}
-.cr-text strong{color:#e2e8f0;display:block;margin-bottom:2px;}
-.back-btn{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;padding:13px 28px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;display:inline-block;transition:transform .2s;}
-.back-btn:hover{transform:translateY(-2px);}
+body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;padding:32px 20px;}
+.logo{font-family:monospace;font-size:13px;font-weight:800;letter-spacing:4px;background:linear-gradient(135deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:32px;text-align:center;}
+.wrap{max-width:740px;margin:0 auto;}
+
+/* Loading */
+#stateLoading{text-align:center;padding:60px 0;}
+.confirm-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;}
+.confirm-check{width:40px;height:40px;background:rgba(74,222,128,.12);border:2px solid #4ade80;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:#4ade80;animation:pop .5s cubic-bezier(.16,1,.3,1);}
+.confirm-text{font-size:20px;font-weight:700;color:#e2e8f0;}
+@keyframes pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+.loading-sub{font-size:14px;color:#64748b;margin-bottom:28px;}
+.terminal{background:#060610;border:1px solid rgba(124,58,237,.25);border-radius:10px;padding:20px 24px;text-align:left;font-family:monospace;font-size:13px;color:#4c1d95;max-width:440px;margin:0 auto;}
+.tl{margin-bottom:6px;opacity:0;transition:opacity .4s;}
+.tl.on{opacity:1;color:#a78bfa;}
+.tl.done{color:#4ade80;}
+.tl.active{color:#e2e8f0;}
+
+/* Strategy fallback input */
+#stateInput{text-align:center;padding:40px 0;}
+#stateInput h2{font-size:22px;font-weight:700;margin-bottom:8px;}
+#stateInput p{color:#94a3b8;font-size:14px;margin-bottom:20px;}
+#stateInput textarea{width:100%;max-width:480px;background:#060610;border:1px solid rgba(124,58,237,.3);border-radius:8px;padding:14px;color:#e2e8f0;font-size:14px;min-height:120px;outline:none;resize:vertical;font-family:inherit;}
+#stateInput textarea:focus{border-color:#7c3aed;}
+.gen-btn{margin-top:14px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;padding:13px 28px;border-radius:8px;font-size:14px;font-weight:700;border:none;cursor:pointer;display:inline-block;}
+.gen-btn:hover{opacity:.9;}
+
+/* Report */
+#stateReport{padding-top:8px;}
+.verdict-banner{border-radius:14px;padding:28px 28px;margin-bottom:24px;text-align:center;}
+.vb-emoji{font-size:44px;margin-bottom:10px;}
+.vb-label{font-family:monospace;font-size:28px;font-weight:900;letter-spacing:4px;margin-bottom:12px;}
+.vb-summary{font-size:15px;line-height:1.75;color:#cbd5e1;max-width:560px;margin:0 auto;}
+
+.section{background:#0a0a16;border:1px solid rgba(124,58,237,.2);border-radius:12px;overflow:hidden;margin-bottom:20px;}
+.section-header{padding:14px 20px;background:rgba(124,58,237,.06);border-bottom:1px solid rgba(124,58,237,.1);}
+.section-title{font-family:monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#7c3aed;}
+.section-body{padding:0;}
+
+/* Test table */
+.test-row{display:grid;grid-template-columns:1fr auto;gap:12px;padding:14px 20px;border-bottom:1px solid #0c0c1a;align-items:start;}
+.test-row:last-child{border-bottom:none;}
+.test-name{font-size:13px;font-weight:600;color:#cbd5e1;margin-bottom:4px;}
+.test-finding{font-size:12px;color:#64748b;line-height:1.6;}
+.test-badge{font-family:monospace;font-size:10px;font-weight:700;letter-spacing:1px;padding:4px 10px;border-radius:4px;white-space:nowrap;align-self:start;margin-top:1px;}
+
+/* Change list */
+.change-list{padding:16px 20px;list-style:none;}
+.change-list li{padding:8px 0;padding-left:20px;position:relative;font-size:13px;color:#94a3b8;line-height:1.6;border-bottom:1px solid #0c0c1a;}
+.change-list li:last-child{border-bottom:none;}
+.change-list li::before{content:'→';position:absolute;left:0;color:#7c3aed;font-family:monospace;}
+
+/* Bottom line */
+.bottom-line-box{background:#060610;border-left:3px solid #7c3aed;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;}
+.bl-label{font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#4c1d95;margin-bottom:6px;}
+.bl-text{font-size:15px;color:#e2e8f0;font-weight:600;line-height:1.65;}
+
+/* Actions */
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px;}
+.act-btn{padding:11px 20px;border-radius:8px;font-size:13px;font-weight:700;border:none;cursor:pointer;transition:transform .15s,opacity .15s;flex-shrink:0;}
+.act-btn:hover{transform:translateY(-1px);opacity:.9;}
+.btn-dl{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;}
+.btn-x{background:#1a1a2a;border:1px solid rgba(255,255,255,.1);color:#e2e8f0;}
+.btn-wa{background:#1a2e1a;border:1px solid rgba(74,222,128,.2);color:#4ade80;}
+.btn-cp{background:#0a0a16;border:1px solid rgba(124,58,237,.3);color:#a78bfa;}
+.back-link{display:inline-block;font-size:13px;color:#374151;text-decoration:none;font-family:monospace;}
+.back-link:hover{color:#7c3aed;}
 .note{font-size:11px;color:#1f2937;font-family:monospace;margin-top:16px;}
+
+/* Error */
+#stateError{text-align:center;padding:60px 20px;}
+.error-icon{font-size:48px;margin-bottom:16px;}
+#stateError h2{font-size:22px;font-weight:700;margin-bottom:10px;color:#e2e8f0;}
+#stateError p{color:#64748b;font-size:14px;line-height:1.7;max-width:420px;margin:0 auto 24px;}
+.err-btn{background:#0a0a16;border:1px solid rgba(124,58,237,.3);color:#a78bfa;padding:11px 22px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;display:inline-block;}
+
+@media(max-width:540px){
+  .test-row{grid-template-columns:1fr;gap:8px;}
+  .vb-label{font-size:22px;}
+  .actions{flex-direction:column;}
+  .act-btn{text-align:center;}
+}
 </style>
 </head>
 <body>
+<div class="wrap">
   <div class="logo">VEKTOR</div>
-  <div class="icon">📬</div>
-  <h1>Payment confirmed.</h1>
-  <p class="sub">Your full audit is being generated right now. <em>Check your email in a few minutes</em> — the report will arrive with your complete verdict and all 6 test results.</p>
 
-  <div class="card">
-    <div class="card-row">
-      <div class="cr-icon">🔬</div>
-      <div class="cr-text"><strong>6 independent statistical tests</strong>Look-ahead scan, cost stress, random-null, permuted-timing, walk-forward OOS, multiple-testing correction.</div>
+  <!-- LOADING STATE -->
+  <div id="stateLoading">
+    <div class="confirm-row">
+      <div class="confirm-check">✓</div>
+      <div class="confirm-text">Payment confirmed.</div>
     </div>
-    <div class="card-row">
-      <div class="cr-icon">📄</div>
-      <div class="cr-text"><strong>Full PDF-quality report</strong>Detailed reasoning for every test. What passed, what failed, what would change the verdict.</div>
-    </div>
-    <div class="card-row">
-      <div class="cr-icon">📧</div>
-      <div class="cr-text"><strong>Delivered to your inbox</strong>Check the email you used at checkout. Also check spam if it doesn't arrive within 10 minutes.</div>
+    <div class="loading-sub">Running your full 6-test audit now...</div>
+    <div class="terminal">
+      <div class="tl" id="tl0"># VEKTOR full audit initialising...</div>
+      <div class="tl" id="tl1">▶ verifying payment...</div>
+      <div class="tl" id="tl2">▶ loading strategy...</div>
+      <div class="tl" id="tl3">▶ look-ahead & leakage scan...</div>
+      <div class="tl" id="tl4">▶ cost & slippage stress (3× fees)...</div>
+      <div class="tl" id="tl5">▶ random-entry null comparison...</div>
+      <div class="tl" id="tl6">▶ permuted-timing null...</div>
+      <div class="tl" id="tl7">▶ walk-forward out-of-sample test...</div>
+      <div class="tl" id="tl8">▶ multiple-testing correction...</div>
+      <div class="tl" id="tl9">▶ compiling verdict...</div>
     </div>
   </div>
 
-  <a class="back-btn" href="/">← Back to VEKTOR</a>
-  <div class="note">Questions? Reply to the report email or contact laurin85@gmail.com</div>
+  <!-- STRATEGY FALLBACK (if localStorage empty) -->
+  <div id="stateInput" hidden>
+    <h2>One more step.</h2>
+    <p>We couldn't find your strategy. Paste it below to generate your report:</p>
+    <div style="text-align:left;max-width:480px;margin:0 auto;">
+      <textarea id="strategyFallback" placeholder="Describe the strategy you submitted..."></textarea>
+    </div>
+    <br>
+    <button class="gen-btn" onclick="startWithFallback()">Generate my report →</button>
+  </div>
+
+  <!-- REPORT STATE -->
+  <div id="stateReport" hidden>
+    <!-- Verdict banner -->
+    <div class="verdict-banner" id="verdictBanner">
+      <div class="vb-emoji" id="vbEmoji"></div>
+      <div class="vb-label" id="vbLabel"></div>
+      <div class="vb-summary" id="vbSummary"></div>
+    </div>
+
+    <!-- 6 tests -->
+    <div class="section">
+      <div class="section-header"><div class="section-title">6 Independent Statistical Tests</div></div>
+      <div class="section-body" id="testsBody"></div>
+    </div>
+
+    <!-- What would change verdict -->
+    <div class="section">
+      <div class="section-header"><div class="section-title">What Would Change This Verdict</div></div>
+      <ul class="change-list" id="changeList"></ul>
+    </div>
+
+    <!-- Bottom line -->
+    <div class="bottom-line-box">
+      <div class="bl-label">Bottom Line</div>
+      <div class="bl-text" id="blText"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button class="act-btn btn-dl" onclick="downloadReport()">↓ Download Report</button>
+      <button class="act-btn btn-x" onclick="shareX()">𝕏 Post on X</button>
+      <button class="act-btn btn-wa" onclick="shareWA()">WhatsApp</button>
+      <button class="act-btn btn-cp" id="cpBtn" onclick="copyVerdict()">Copy verdict</button>
+    </div>
+
+    <a class="back-link" href="/">← Test another strategy</a>
+    <div class="note">A copy of this report has also been sent to your email.</div>
+  </div>
+
+  <!-- ERROR STATE -->
+  <div id="stateError" hidden>
+    <div class="error-icon">⚠️</div>
+    <h2>Something went wrong.</h2>
+    <p id="errorMsg">We couldn't generate your report. If you were charged, contact us and we'll sort it out.</p>
+    <a class="err-btn" href="/">← Back to VEKTOR</a>
+    <div class="note" style="margin-top:20px;">Need help? Email laurin85@gmail.com</div>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const SESSION_ID = params.get('session_id') || '';
+let _report = null;
+let _strategy = '';
+
+// Terminal line animation
+function animateTerminal(activeIdx) {
+  for (let i = 0; i <= 9; i++) {
+    const el = document.getElementById('tl' + i);
+    if (i < activeIdx) { el.classList.add('on', 'done'); el.classList.remove('active'); }
+    else if (i === activeIdx) { el.classList.add('on', 'active'); el.classList.remove('done'); }
+  }
+}
+
+function show(id) {
+  ['stateLoading','stateInput','stateReport','stateError'].forEach(s => {
+    document.getElementById(s).hidden = (s !== id);
+  });
+}
+
+function renderReport(report) {
+  _report = report;
+  const color = report.verdict_color || '#fbbf24';
+  const banner = document.getElementById('verdictBanner');
+  banner.style.background = color + '10';
+  banner.style.border = '2px solid ' + color + '40';
+  document.getElementById('vbEmoji').textContent = report.verdict_emoji || '🟠';
+  document.getElementById('vbLabel').textContent = report.verdict.replace(/_/g,' ');
+  document.getElementById('vbLabel').style.color = color;
+  document.getElementById('vbSummary').textContent = report.executive_summary || '';
+
+  const testsBody = document.getElementById('testsBody');
+  testsBody.innerHTML = '';
+  (report.tests || []).forEach(t => {
+    const row = document.createElement('div');
+    row.className = 'test-row';
+    const rc = t.result_color || '#94a3b8';
+    row.innerHTML = `
+      <div>
+        <div class="test-name">${t.name}</div>
+        <div class="test-finding">${t.finding}</div>
+      </div>
+      <div class="test-badge" style="background:${rc}18;border:1px solid ${rc}44;color:${rc};">${t.result}</div>`;
+    testsBody.appendChild(row);
+  });
+
+  const changeList = document.getElementById('changeList');
+  changeList.innerHTML = '';
+  (report.what_would_change_verdict || []).forEach(item => {
+    const li = document.createElement('li');
+    li.textContent = item;
+    changeList.appendChild(li);
+  });
+
+  document.getElementById('blText').textContent = report.bottom_line || '';
+  show('stateReport');
+}
+
+async function fetchReport(strategy) {
+  _strategy = strategy;
+  let step = 1;
+  const stepInterval = setInterval(() => {
+    if (step < 9) animateTerminal(step++);
+  }, 800);
+
+  animateTerminal(0);
+
+  try {
+    const resp = await fetch('/api/generate-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: SESSION_ID, strategy }),
+    });
+    clearInterval(stepInterval);
+    animateTerminal(9);
+    const data = await resp.json();
+    if (!resp.ok) {
+      document.getElementById('errorMsg').textContent = data.error || 'Unknown error. Contact laurin85@gmail.com.';
+      show('stateError');
+      return;
+    }
+    setTimeout(() => renderReport(data.report), 500);
+  } catch (err) {
+    clearInterval(stepInterval);
+    document.getElementById('errorMsg').textContent = 'Network error. Please try refreshing the page.';
+    show('stateError');
+  }
+}
+
+function startWithFallback() {
+  const s = document.getElementById('strategyFallback').value.trim();
+  if (s.length < 10) { alert('Please describe the strategy.'); return; }
+  show('stateLoading');
+  fetchReport(s);
+}
+
+// Download report as HTML
+function downloadReport() {
+  if (!_report) return;
+  const r = _report;
+  const color = r.verdict_color || '#fbbf24';
+  const testRows = (r.tests || []).map(t => `
+    <tr>
+      <td style="padding:12px 16px;border-bottom:1px solid #0f0f20;font-size:13px;color:#cbd5e1;font-weight:600;">${t.name}</td>
+      <td style="padding:12px 16px;border-bottom:1px solid #0f0f20;">
+        <span style="background:${t.result_color}18;border:1px solid ${t.result_color}44;color:${t.result_color};font-family:monospace;font-size:10px;font-weight:700;letter-spacing:1px;padding:3px 9px;border-radius:4px;">${t.result}</span>
+      </td>
+      <td style="padding:12px 16px;border-bottom:1px solid #0f0f20;font-size:13px;color:#94a3b8;line-height:1.6;">${t.finding}</td>
+    </tr>`).join('');
+  const changeItems = (r.what_would_change_verdict || []).map(i => `<li style="margin-bottom:8px;color:#94a3b8;font-size:13px;">${i}</li>`).join('');
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>VEKTOR Audit Report</title></head>
+<body style="background:#050508;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:32px 24px;max-width:720px;margin:0 auto;">
+<div style="font-family:monospace;font-size:13px;font-weight:800;letter-spacing:4px;color:#a78bfa;margin-bottom:6px;">VEKTOR</div>
+<div style="font-family:monospace;font-size:11px;color:#374151;margin-bottom:36px;">Independent Strategy Falsification · ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
+<div style="background:${color}10;border:2px solid ${color}40;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
+  <div style="font-size:40px;margin-bottom:8px;">${r.verdict_emoji}</div>
+  <div style="font-family:monospace;font-size:26px;font-weight:900;letter-spacing:4px;color:${color};margin-bottom:12px;">${r.verdict.replace(/_/g,' ')}</div>
+  <div style="font-size:14px;color:#cbd5e1;line-height:1.7;">${r.executive_summary}</div>
+</div>
+${_strategy ? `<div style="background:#080812;border:1px solid #1a1a2e;border-radius:8px;padding:14px 16px;margin-bottom:24px;"><div style="font-family:monospace;font-size:10px;letter-spacing:2px;color:#374151;margin-bottom:6px;">STRATEGY SUBMITTED</div><div style="font-size:13px;color:#4b5563;line-height:1.65;">${_strategy}</div></div>` : ''}
+<div style="background:#0a0a16;border:1px solid rgba(124,58,237,.2);border-radius:12px;overflow:hidden;margin-bottom:24px;">
+  <div style="padding:14px 20px;background:rgba(124,58,237,.07);border-bottom:1px solid rgba(124,58,237,.12);font-family:monospace;font-size:11px;letter-spacing:2px;color:#7c3aed;">6 INDEPENDENT TESTS</div>
+  <table style="width:100%;border-collapse:collapse;">${testRows}</table>
+</div>
+<div style="background:#0a0a16;border:1px solid rgba(124,58,237,.2);border-radius:12px;padding:20px;margin-bottom:24px;">
+  <div style="font-family:monospace;font-size:11px;letter-spacing:2px;color:#7c3aed;margin-bottom:12px;">WHAT WOULD CHANGE THIS VERDICT</div>
+  <ul style="padding-left:20px;margin:0;">${changeItems}</ul>
+</div>
+<div style="background:#060610;border-left:3px solid #7c3aed;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:32px;">
+  <div style="font-family:monospace;font-size:10px;letter-spacing:2px;color:#4c1d95;margin-bottom:6px;">BOTTOM LINE</div>
+  <div style="font-size:15px;color:#e2e8f0;font-weight:600;line-height:1.6;">${r.bottom_line}</div>
+</div>
+<div style="font-family:monospace;font-size:11px;color:#1f2937;text-align:center;border-top:1px solid #0d0d18;padding-top:20px;">VEKTOR · independent strategy falsification · not investment advice</div>
+</body></html>`;
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'vektor-audit-report.html'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function getShareText() {
+  if (!_report) return '';
+  const v = _report.verdict.replace(/_/g,' ');
+  return `Just got my strategy VEKTOR-audited.\n\nVerdict: ${_report.verdict_emoji} ${v}\n\n${_report.bottom_line}\n\nTest yours free → https://vektor-site-xi.vercel.app`;
+}
+function shareX() { window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(getShareText()), '_blank'); }
+function shareWA() { window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(getShareText()), '_blank'); }
+function copyVerdict() {
+  navigator.clipboard.writeText(getShareText()).then(() => {
+    const btn = document.getElementById('cpBtn');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = 'Copy verdict', 2000);
+  });
+}
+
+// Init
+(function init() {
+  if (!SESSION_ID) {
+    document.getElementById('errorMsg').textContent = 'No payment session found. If you paid, please contact laurin85@gmail.com.';
+    show('stateError');
+    return;
+  }
+  const strategy = localStorage.getItem('vektor_strategy') || '';
+  if (strategy.trim().length < 10) {
+    show('stateInput');
+    return;
+  }
+  localStorage.removeItem('vektor_strategy');
+  fetchReport(strategy);
+})();
+</script>
 </body>
 </html>

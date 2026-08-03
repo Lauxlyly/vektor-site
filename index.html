@@ -423,7 +423,7 @@ The more detail, the better: entry trigger, exit, timeframe, instrument, how you
             <div class="ap-price">$99</div>
             <div class="ap-desc">One-time · Full report delivered to your email · Verdict within 48h</div>
           </div>
-          <a class="audit-cta-btn" id="fullAuditBtn" href="https://buy.stripe.com/test_fZueV5eTw5hN54sgUOak000" target="_blank">
+          <a class="audit-cta-btn" id="fullAuditBtn" href="https://buy.stripe.com/test_fZueV5eTw5hN54sgUOak000" onclick="saveStrategyBeforeCheckout()">
             Get the Full Audit — $99 →
           </a>
           <div class="audit-cta-note">You'll have your full report in your inbox within minutes.</div>
@@ -648,7 +648,7 @@ async function runAnalysis(){
   // Path forward
   document.getElementById('pfText').textContent=data.what_would_help||'';
 
-  document.getElementById('fullAuditBtn').href='https://buy.stripe.com/test_fZueV5eTw5hN54sgUOak000';
+  // Strategy saved to localStorage — carries through to success.html after payment
 
   // Share text
   const siteUrl='https://vektor-site-xi.vercel.app';
@@ -662,6 +662,10 @@ async function runAnalysis(){
 
   // Scroll to result
   document.getElementById('resultBox').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function saveStrategyBeforeCheckout(){
+  if(_lastStrategy) localStorage.setItem('vektor_strategy',_lastStrategy);
 }
 
 function shareX(){

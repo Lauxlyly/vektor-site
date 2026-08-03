@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@anthropic-ai/sdk": "^0.53.0",
-    "resend": "^4.0.0"
+    "resend": "^4.0.0",
+    "stripe": "^16.0.0"
   }
 }
