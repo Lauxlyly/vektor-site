@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VEKTOR — Test Your Crypto Strategy. For Real.</title>
-<meta name="description" content="Saw a crypto strategy on Instagram? Send it here. We run 6 independent statistical tests and tell you if it actually works. 94% fail. Instant result.">
+<title>Does Your Crypto Strategy Actually Work? — VEKTOR</title>
+<meta name="description" content="Most strategies shared online don't survive real data. Paste yours — 6 independent statistical tests, honest verdict in seconds. 94% fail. Free to test.">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html{scroll-behavior:smooth;}
@@ -261,9 +261,9 @@ footer a{color:#374151;}
   </h1>
 
   <p class="hero-sub">
-    Everyone's selling alpha. <em>We test if it actually works.</em><br>
-    Paste your strategy → 6 independent statistical tests → honest verdict in seconds.
-    No guru collab. No affiliate link. Just math.
+    Most strategies that get shared online don't survive contact with real data.
+    Paste yours — we run <em>6 independent statistical tests</em> and give you an honest verdict in seconds.
+    No affiliate links. Just math.
   </p>
   <div class="hero-instagram">↓ 94% of strategies that reach us fail. Yours might not.</div>
 
@@ -318,7 +318,7 @@ footer a{color:#374151;}
 <!-- HOW IT WORKS -->
 <section class="how">
   <div class="sh">
-    <div class="se">Protocol</div>
+    <div class="se">How it works</div>
     <h2 class="st">Three steps. One honest verdict.</h2>
     <p class="ss">Pre-registered methodology. No result-tuning. No interest in your outcome.</p>
   </div>
@@ -409,8 +409,8 @@ The more detail, the better: entry trigger, exit, timeframe, instrument, how you
         <!-- Full audit CTA -->
         <div class="audit-cta">
           <div class="audit-cta-badge">Full Statistical Audit — $99</div>
-          <div class="audit-cta-title">The quick screen found problems. The full audit proves it.</div>
-          <div class="audit-cta-sub">Quick screens miss edge cases. Full statistical testing is the only way to know for sure — and at $99 it costs less than one bad trade.</div>
+          <div class="audit-cta-title">One bad trade costs more than $99. Know before you risk real money.</div>
+          <div class="audit-cta-sub">Six independent statistical tests. A full PDF report. The most rigorous answer your strategy can get.</div>
           <div class="audit-checklist">
             <div class="aci"><div class="aci-check">✓</div>Look-ahead leakage scan</div>
             <div class="aci"><div class="aci-check">✓</div>Random-entry null test</div>
@@ -426,7 +426,7 @@ The more detail, the better: entry trigger, exit, timeframe, instrument, how you
           <a class="audit-cta-btn" id="fullAuditBtn" href="https://buy.stripe.com/PLACEHOLDER" target="_blank">
             Get the Full Audit — $99 →
           </a>
-          <div class="audit-cta-note">Pay now → strategy analysed → full PDF report sent to your email automatically</div>
+          <div class="audit-cta-note">You'll have your full report in your inbox within minutes.</div>
         </div>
 
         <!-- Share -->
@@ -498,7 +498,7 @@ The more detail, the better: entry trigger, exit, timeframe, instrument, how you
   <div class="cta-ring r3"></div><div class="cta-ring r4"></div>
   <div class="cta-price">Free quick screen · Full audit $99 · Verdict within 48h</div>
   <h2 class="cta-title">Find out before you fund it.</h2>
-  <p class="cta-sub">The most valuable result is often STOP — it saves real money before you deploy real capital.</p>
+  <p class="cta-sub">The most valuable result is often STOP. It means you didn't lose real money on a strategy that looked good online.</p>
   <a class="btn-primary" href="#analyze" style="font-size:16px;padding:16px 36px;">Test my strategy free →</a>
 </section>
 
@@ -654,9 +654,9 @@ async function runAnalysis(){
 
   // Share text
   const siteUrl='https://vektor-site-xi.vercel.app';
-  const shareText=`${emoji} ${label} — VEKTOR strategy screen:\n\n`+
+  const shareText=`Just ran a strategy I saw online through VEKTOR. It didn't survive the math.\n\n`+
     (data.red_flags||[]).map(f=>`⚠ ${f}`).join('\n')+
-    `\n\n94% of strategies fail. Test yours free 👇\n${siteUrl}`;
+    `\n\nTest yours free before you fund it:\n${siteUrl}`;
   const sharePreview=document.getElementById('sharePreview');
   sharePreview.textContent=shareText;
   sharePreview.classList.add('show');
