@@ -119,40 +119,81 @@ section{position:relative;z-index:1;}
 
 /* RESULT BOX */
 .result-box{display:none;border-top:1px solid rgba(124,58,237,.12);}
-.result-box.show{display:block;}
-.verdict-area{padding:26px 26px 20px;text-align:center;}
-@media(max-width:500px){.verdict-area{padding:20px 16px 16px;}}
-.verdict-label-sm{font-family:monospace;font-size:10px;letter-spacing:2px;color:#6b7280;text-transform:uppercase;margin-bottom:8px;}
-.verdict-text{font-family:monospace;font-size:40px;font-weight:900;letter-spacing:5px;margin-bottom:10px;}
-@media(max-width:400px){.verdict-text{font-size:30px;}}
-.verdict-stop{color:#ef4444;text-shadow:0 0 40px rgba(239,68,68,.7);animation:vglow-r 2.5s ease-in-out infinite;}
-.verdict-rework{color:#fbbf24;text-shadow:0 0 40px rgba(251,191,36,.7);animation:vglow-y 2.5s ease-in-out infinite;}
-.verdict-go{color:#4ade80;text-shadow:0 0 40px rgba(74,222,128,.7);animation:vglow-g 2.5s ease-in-out infinite;}
-@keyframes vglow-r{0%,100%{text-shadow:0 0 40px rgba(239,68,68,.7)}50%{text-shadow:0 0 70px rgba(239,68,68,1),0 0 110px rgba(239,68,68,.5)}}
-@keyframes vglow-y{0%,100%{text-shadow:0 0 40px rgba(251,191,36,.7)}50%{text-shadow:0 0 70px rgba(251,191,36,1),0 0 110px rgba(251,191,36,.4)}}
-@keyframes vglow-g{0%,100%{text-shadow:0 0 40px rgba(74,222,128,.7)}50%{text-shadow:0 0 70px rgba(74,222,128,1),0 0 110px rgba(74,222,128,.4)}}
+.result-box.show{display:block;animation:rbslide .5s cubic-bezier(.16,1,.3,1);}
+@keyframes rbslide{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 
-.finding-text{font-size:14px;color:#94a3b8;max-width:520px;margin:0 auto 20px;line-height:1.6;}
-.red-flags{margin:0 26px 20px;display:flex;flex-direction:column;gap:8px;}
-@media(max-width:500px){.red-flags{margin:0 16px 16px;}}
-.rf-item{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);border-radius:7px;padding:10px 14px;font-size:13px;color:#f87171;font-family:monospace;}
-.rf-item::before{content:'⚠ ';opacity:.7;}
-.what-helps{margin:0 26px 20px;background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.15);border-radius:7px;padding:12px 16px;font-size:13px;color:#a78bfa;font-family:monospace;}
-.what-helps strong{color:#7c3aed;}
+/* verdict header */
+.verdict-header{padding:28px 26px 0;text-align:center;}
+@media(max-width:500px){.verdict-header{padding:20px 16px 0;}}
+.vh-eyebrow{font-family:monospace;font-size:10px;letter-spacing:3px;color:#4b5563;text-transform:uppercase;margin-bottom:10px;}
+.verdict-badge{display:inline-flex;align-items:center;gap:10px;padding:10px 24px;border-radius:100px;font-family:monospace;font-weight:900;font-size:18px;letter-spacing:3px;margin-bottom:16px;}
+.vb-stop{background:rgba(239,68,68,.1);border:2px solid rgba(239,68,68,.4);color:#ef4444;box-shadow:0 0 40px rgba(239,68,68,.2);animation:vglow-r 2.5s ease-in-out infinite;}
+.vb-rework{background:rgba(251,191,36,.08);border:2px solid rgba(251,191,36,.35);color:#fbbf24;box-shadow:0 0 40px rgba(251,191,36,.15);animation:vglow-y 2.5s ease-in-out infinite;}
+.vb-go{background:rgba(74,222,128,.08);border:2px solid rgba(74,222,128,.35);color:#4ade80;box-shadow:0 0 40px rgba(74,222,128,.15);animation:vglow-g 2.5s ease-in-out infinite;}
+@keyframes vglow-r{0%,100%{box-shadow:0 0 40px rgba(239,68,68,.2)}50%{box-shadow:0 0 70px rgba(239,68,68,.45)}}
+@keyframes vglow-y{0%,100%{box-shadow:0 0 40px rgba(251,191,36,.15)}50%{box-shadow:0 0 60px rgba(251,191,36,.4)}}
+@keyframes vglow-g{0%,100%{box-shadow:0 0 40px rgba(74,222,128,.15)}50%{box-shadow:0 0 60px rgba(74,222,128,.4)}}
+.verdict-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.vd-stop{background:#ef4444;animation:blink .8s step-end infinite;}
+.vd-rework{background:#fbbf24;animation:blink 1s step-end infinite;}
+.vd-go{background:#4ade80;}
+.verdict-finding{font-size:15px;color:#cbd5e1;max-width:540px;margin:0 auto 24px;line-height:1.65;font-style:italic;}
 
-.full-report-cta{margin:0 26px 26px;padding:20px;background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.2);border-radius:10px;text-align:center;}
-@media(max-width:500px){.full-report-cta{margin:0 16px 20px;}}
-.frc-label{font-size:12px;color:#4c1d95;font-family:monospace;letter-spacing:1px;margin-bottom:6px;}
-.frc-text{font-size:14px;color:#94a3b8;margin-bottom:14px;line-height:1.5;}
-.frc-text em{color:#e2e8f0;}
-.btn-full-report{display:block;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;padding:13px 24px;border-radius:7px;font-weight:700;font-size:14px;text-decoration:none;animation:pulse-btn 2.5s ease-in-out infinite;}
-@keyframes pulse-btn{0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,0)}50%{box-shadow:0 0 20px 4px rgba(124,58,237,.45)}}
-.frc-price{display:block;font-size:11px;color:#374151;font-family:monospace;margin-top:8px;}
+/* scorecard */
+.scorecard{margin:0 26px 20px;}
+@media(max-width:500px){.scorecard{margin:0 16px 18px;}}
+.sc-title{font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#374151;margin-bottom:10px;}
+.sc-grid{display:flex;flex-direction:column;gap:8px;}
+.sc-item{display:flex;align-items:flex-start;gap:12px;background:rgba(15,15,28,.8);border:1px solid rgba(239,68,68,.12);border-radius:9px;padding:12px 16px;animation:scin .4s ease-out both;}
+@keyframes scin{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+.sc-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+.sc-content{flex:1;min-width:0;}
+.sc-text{font-size:13px;color:#e2e8f0;line-height:1.5;}
+.sc-severity{display:inline-block;font-family:monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:2px 8px;border-radius:4px;margin-top:5px;font-weight:700;}
+.sev-fatal{background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.25);}
+.sev-high{background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.2);}
+.sev-medium{background:rgba(148,163,184,.08);color:#94a3b8;border:1px solid rgba(148,163,184,.15);}
 
-.confidence-row{font-family:monospace;font-size:11px;color:#374151;text-align:center;padding:0 26px 16px;}
+/* path forward */
+.path-forward{margin:0 26px 20px;background:linear-gradient(135deg,rgba(124,58,237,.06),rgba(79,70,229,.04));border:1px solid rgba(124,58,237,.18);border-radius:10px;padding:16px 18px;}
+@media(max-width:500px){.path-forward{margin:0 16px 18px;}}
+.pf-label{font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#7c3aed;margin-bottom:7px;}
+.pf-text{font-size:13px;color:#a78bfa;line-height:1.65;}
 
-.try-again-btn{display:block;text-align:center;font-size:12px;color:#4c1d95;font-family:monospace;cursor:pointer;padding:8px;background:none;border:none;width:100%;text-decoration:underline;margin-bottom:8px;}
-.try-again-btn:hover{color:#7c3aed;}
+/* full audit CTA — the centrepiece */
+.audit-cta{margin:0 26px 20px;background:linear-gradient(135deg,#0f0820,#0c1030);border:1px solid rgba(124,58,237,.35);border-radius:14px;padding:24px 22px;position:relative;overflow:hidden;}
+@media(max-width:500px){.audit-cta{margin:0 16px 18px;padding:20px 16px;}}
+.audit-cta::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(124,58,237,.12),transparent 60%);pointer-events:none;}
+.audit-cta-badge{display:inline-block;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);border-radius:100px;font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#a78bfa;padding:4px 14px;margin-bottom:12px;}
+.audit-cta-title{font-size:18px;font-weight:800;color:#f1f5f9;margin-bottom:6px;position:relative;}
+.audit-cta-sub{font-size:13px;color:#64748b;margin-bottom:16px;line-height:1.5;position:relative;}
+.audit-checklist{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:18px;position:relative;}
+@media(max-width:450px){.audit-checklist{grid-template-columns:1fr;}}
+.aci{font-size:12px;color:#94a3b8;display:flex;align-items:center;gap:7px;}
+.aci-check{width:16px;height:16px;border-radius:4px;background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.35);display:flex;align-items:center;justify-content:center;font-size:9px;color:#a78bfa;flex-shrink:0;}
+.audit-price-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;position:relative;}
+.ap-price{font-size:28px;font-weight:900;font-family:monospace;background:linear-gradient(135deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.ap-desc{font-size:12px;color:#4b5563;line-height:1.4;}
+.audit-cta-btn{display:block;text-align:center;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;padding:14px 24px;border-radius:9px;font-weight:800;font-size:15px;text-decoration:none;position:relative;overflow:hidden;box-shadow:0 6px 24px rgba(124,58,237,.4);animation:pulse-btn 2.5s ease-in-out infinite;}
+@keyframes pulse-btn{0%,100%{box-shadow:0 6px 24px rgba(124,58,237,.35)}50%{box-shadow:0 6px 40px rgba(124,58,237,.7)}}
+.audit-cta-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent,rgba(255,255,255,.12),transparent);transform:translateX(-100%);animation:shimmer 2.5s ease-in-out infinite;}
+.audit-cta-note{text-align:center;font-family:monospace;font-size:10px;color:#374151;margin-top:10px;position:relative;}
+
+/* share section */
+.share-section{margin:0 26px 6px;}
+@media(max-width:500px){.share-section{margin:0 16px 6px;}}
+.share-label{font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#374151;margin-bottom:10px;}
+.share-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.share-btn{flex:1;min-width:80px;padding:10px 12px;border-radius:7px;border:1px solid;font-size:12px;font-weight:700;font-family:monospace;cursor:pointer;transition:transform .15s,opacity .15s;text-align:center;letter-spacing:.5px;}
+.share-btn:hover{transform:translateY(-2px);opacity:.85;}
+.share-x{background:rgba(0,0,0,.4);border-color:#333;color:#e2e8f0;}
+.share-wa{background:rgba(37,211,102,.08);border-color:rgba(37,211,102,.3);color:#25d366;}
+.share-copy{background:rgba(124,58,237,.08);border-color:rgba(124,58,237,.25);color:#a78bfa;}
+.share-preview{font-family:monospace;font-size:11px;color:#374151;background:#030306;border:1px solid #0d0d18;border-radius:7px;padding:12px;line-height:1.8;white-space:pre-wrap;display:none;margin-bottom:4px;}
+.share-preview.show{display:block;}
+
+.try-again-btn{display:block;text-align:center;font-size:11px;color:#1f2937;font-family:monospace;cursor:pointer;padding:12px 8px 16px;background:none;border:none;width:100%;}
+.try-again-btn:hover{color:#4c1d95;}
 
 /* DEMO TERMINAL */
 .demo-section{padding:90px 20px;background:radial-gradient(ellipse at 50% 100%,rgba(109,40,217,.08),transparent 60%);}
@@ -342,23 +383,64 @@ The more detail, the better: entry trigger, exit, timeframe, instrument, how you
 
       <!-- RESULT -->
       <div class="result-box" id="resultBox">
-        <div class="verdict-area">
-          <div class="verdict-label-sm">Preliminary verdict</div>
-          <div class="verdict-text" id="verdictText"></div>
-          <div class="finding-text" id="findingText"></div>
+
+        <!-- Verdict header -->
+        <div class="verdict-header">
+          <div class="vh-eyebrow">Preliminary screening verdict</div>
+          <div class="verdict-badge" id="verdictBadge">
+            <div class="verdict-dot" id="verdictDot"></div>
+            <span id="verdictWord"></span>
+          </div>
+          <div class="verdict-finding" id="verdictFinding"></div>
         </div>
-        <div class="red-flags" id="redFlagsBox"></div>
-        <div class="what-helps" id="whatHelpsBox"></div>
-        <div class="full-report-cta">
-          <div class="frc-label">Want the full statistical audit?</div>
-          <div class="frc-text">6 independent tests · walk-forward out-of-sample · multiple-testing correction · <em>full PDF report</em></div>
-          <a class="btn-full-report" href="mailto:laurin85@gmail.com?subject=VEKTOR%20Full%20Audit%20Request&body=Please%20find%20my%20strategy%20description%20below%3A%0A%0A" id="fullReportLink">
-            Request full audit — $99 →
+
+        <!-- Scorecard -->
+        <div class="scorecard">
+          <div class="sc-title">What the screen found</div>
+          <div class="sc-grid" id="scorecardGrid"></div>
+        </div>
+
+        <!-- Path forward -->
+        <div class="path-forward">
+          <div class="pf-label">What would change this verdict</div>
+          <div class="pf-text" id="pfText"></div>
+        </div>
+
+        <!-- Full audit CTA -->
+        <div class="audit-cta">
+          <div class="audit-cta-badge">Full Statistical Audit — $99</div>
+          <div class="audit-cta-title">The quick screen found problems. The full audit proves it.</div>
+          <div class="audit-cta-sub">Quick screens miss edge cases. Full statistical testing is the only way to know for sure — and at $99 it costs less than one bad trade.</div>
+          <div class="audit-checklist">
+            <div class="aci"><div class="aci-check">✓</div>Look-ahead leakage scan</div>
+            <div class="aci"><div class="aci-check">✓</div>Random-entry null test</div>
+            <div class="aci"><div class="aci-check">✓</div>Cost &amp; slippage stress</div>
+            <div class="aci"><div class="aci-check">✓</div>Walk-forward OOS test</div>
+            <div class="aci"><div class="aci-check">✓</div>Multiple-testing correction</div>
+            <div class="aci"><div class="aci-check">✓</div>Full PDF report</div>
+          </div>
+          <div class="audit-price-row">
+            <div class="ap-price">$99</div>
+            <div class="ap-desc">One-time · Full report delivered to your email · Verdict within 48h</div>
+          </div>
+          <a class="audit-cta-btn" id="fullAuditBtn" href="https://buy.stripe.com/PLACEHOLDER" target="_blank">
+            Get the Full Audit — $99 →
           </a>
-          <span class="frc-price">verdict within 48h · pay after confirmation</span>
+          <div class="audit-cta-note">Pay now → strategy analysed → full PDF report sent to your email automatically</div>
         </div>
-        <div class="confidence-row" id="confidenceRow"></div>
-        <button class="try-again-btn" onclick="resetAnalyzer()">← Test another strategy</button>
+
+        <!-- Share -->
+        <div class="share-section">
+          <div class="share-label">Share this verdict</div>
+          <div class="share-buttons">
+            <button class="share-btn share-x" onclick="shareX()">𝕏 Post on X</button>
+            <button class="share-btn share-wa" onclick="shareWA()">WhatsApp</button>
+            <button class="share-btn share-copy" id="copyBtn" onclick="copyResult()">Copy text</button>
+          </div>
+          <div class="share-preview" id="sharePreview"></div>
+        </div>
+
+        <button class="try-again-btn" onclick="resetAnalyzer()">← Test a different strategy</button>
       </div>
     </div>
   </div>
@@ -509,78 +591,96 @@ const demoLines=document.querySelectorAll('.tl');
 demoLines.forEach((l,i)=>setTimeout(()=>l.classList.add('show'),700+i*360));
 
 // ── INTERACTIVE ANALYZER ──
+let _lastStrategy='', _lastLabel='', _lastFlags=[], _lastFinding='';
+
 async function runAnalysis(){
   const strategy=document.getElementById('strategyInput').value.trim();
   if(strategy.length<15){
-    alert('Please describe the strategy in a bit more detail (at least a few sentences).');
+    alert('Please describe the strategy in a bit more detail.');
     return;
   }
+  _lastStrategy=strategy;
 
-  const btn=document.getElementById('analyzeBtn');
-  const formArea=document.getElementById('formArea');
-  const loadingBox=document.getElementById('loadingBox');
-  const resultBox=document.getElementById('resultBox');
-
-  btn.disabled=true;
-  formArea.style.display='none';
-  loadingBox.classList.add('show');
-
-  // Animate loading lines
-  const lbLines=loadingBox.querySelectorAll('.lb-line');
-  lbLines.forEach((l,i)=>setTimeout(()=>l.classList.add('on'),i*600));
+  document.getElementById('analyzeBtn').disabled=true;
+  document.getElementById('formArea').style.display='none';
+  const lb=document.getElementById('loadingBox');
+  lb.classList.add('show');
+  lb.querySelectorAll('.lb-line').forEach((l,i)=>setTimeout(()=>l.classList.add('on'),i*600));
 
   let data;
   try{
-    const resp=await fetch('/api/analyze',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({strategy})
-    });
-    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const resp=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({strategy})});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
     data=await resp.json();
-  } catch(err) {
-    // Graceful error state
-    data={
-      verdict:'REWORK',
-      primary_finding:'Analysis service temporarily unavailable. Please try again in a moment.',
-      red_flags:['Could not reach analysis endpoint'],
-      what_would_help:'Reload the page and try again.',
-      confidence:'LOW',
-      preliminary_note:'This is a quick screen only — not a full statistical audit.'
-    };
+  } catch(e){
+    data={verdict:'REWORK',primary_finding:'Analysis service temporarily unavailable — please try again.',red_flags:['Could not reach analysis endpoint'],what_would_help:'Reload and try again.',confidence:'LOW',preliminary_note:'Quick screen only.'};
   }
 
-  // Hide loading, show result
-  loadingBox.classList.remove('show');
-  resultBox.classList.add('show');
+  lb.classList.remove('show');
+  document.getElementById('resultBox').classList.add('show');
 
-  // Render verdict
-  const vt=document.getElementById('verdictText');
-  const ft=document.getElementById('findingText');
-  const rf=document.getElementById('redFlagsBox');
-  const wh=document.getElementById('whatHelpsBox');
-  const cr=document.getElementById('confidenceRow');
+  // Verdict badge
+  let emoji='🔴', badgeCls='vb-stop', dotCls='vd-stop', label='STOP';
+  if(data.verdict==='GO_CONDITIONAL'){emoji='🟡';badgeCls='vb-go';dotCls='vd-go';label='GO — CONDITIONAL';}
+  else if(data.verdict==='REWORK'){emoji='🟠';badgeCls='vb-rework';dotCls='vd-rework';label='REWORK';}
+  _lastLabel=label; _lastFinding=data.primary_finding||''; _lastFlags=data.red_flags||[];
 
-  let emoji='🔴',cls='verdict-stop',label='STOP';
-  if(data.verdict==='GO_CONDITIONAL'){emoji='🟡';cls='verdict-go';label='GO (CONDITIONAL)';}
-  else if(data.verdict==='REWORK'){emoji='🟡';cls='verdict-rework';label='REWORK';}
+  const badge=document.getElementById('verdictBadge');
+  badge.className='verdict-badge '+badgeCls;
+  badge.querySelector('#verdictDot').className='verdict-dot '+dotCls;
+  document.getElementById('verdictWord').textContent=emoji+' '+label;
+  document.getElementById('verdictFinding').textContent=data.primary_finding||'';
 
-  vt.textContent=`${emoji} ${label}`;
-  vt.className=`verdict-text ${cls}`;
-  ft.textContent=data.primary_finding||'';
-
-  rf.innerHTML='';
-  (data.red_flags||[]).forEach(f=>{
-    const d=document.createElement('div');
-    d.className='rf-item';d.textContent=f;rf.appendChild(d);
+  // Scorecard
+  const grid=document.getElementById('scorecardGrid');
+  grid.innerHTML='';
+  const severities=['FATAL','FATAL','HIGH'];
+  (data.red_flags||[]).forEach((f,i)=>{
+    const sev=severities[i]||'HIGH';
+    const sevCls=sev==='FATAL'?'sev-fatal':sev==='HIGH'?'sev-high':'sev-medium';
+    const icon=sev==='FATAL'?'🚫':sev==='HIGH'?'⚠️':'ℹ️';
+    const el=document.createElement('div');
+    el.className='sc-item';el.style.animationDelay=(i*0.1)+'s';
+    el.innerHTML=`<div class="sc-icon">${icon}</div><div class="sc-content"><div class="sc-text">${f}</div><span class="sc-severity ${sevCls}">${sev}</span></div>`;
+    grid.appendChild(el);
   });
 
-  wh.innerHTML=`<strong>What would settle this →</strong> ${data.what_would_help||''}`;
-  cr.textContent=`Screening confidence: ${data.confidence||'MEDIUM'} · ${data.preliminary_note||'This is a quick screen only — not a full statistical audit.'}`;
+  // Path forward
+  document.getElementById('pfText').textContent=data.what_would_help||'';
 
-  // Pre-fill email link with strategy
-  const mailBody=encodeURIComponent(`Strategy I want to audit:\n\n${strategy}\n\nPreliminary verdict: ${label}\nPrimary finding: ${data.primary_finding||''}`);
-  document.getElementById('fullReportLink').href=`mailto:laurin85@gmail.com?subject=VEKTOR%20Full%20Audit%20Request&body=${mailBody}`;
+  // Audit CTA — pass strategy via Paddle/Stripe custom data (placeholder URL for now)
+  const encodedStrat=encodeURIComponent(strategy.slice(0,500));
+  document.getElementById('fullAuditBtn').href=`https://buy.stripe.com/PLACEHOLDER?prefilled_custom_data=${encodedStrat}`;
+
+  // Share text
+  const siteUrl='https://vektor-site-xi.vercel.app';
+  const shareText=`${emoji} ${label} — VEKTOR strategy screen:\n\n`+
+    (data.red_flags||[]).map(f=>`⚠ ${f}`).join('\n')+
+    `\n\n94% of strategies fail. Test yours free 👇\n${siteUrl}`;
+  const sharePreview=document.getElementById('sharePreview');
+  sharePreview.textContent=shareText;
+  sharePreview.classList.add('show');
+  window._shareText=shareText;
+
+  // Scroll to result
+  document.getElementById('resultBox').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function shareX(){
+  const text=window._shareText||'';
+  window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(text),'_blank');
+}
+function shareWA(){
+  const text=window._shareText||'';
+  window.open('https://api.whatsapp.com/send?text='+encodeURIComponent(text),'_blank');
+}
+function copyResult(){
+  const text=window._shareText||'';
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=document.getElementById('copyBtn');
+    btn.textContent='✓ Copied!';
+    setTimeout(()=>btn.textContent='Copy text',2000);
+  });
 }
 
 function resetAnalyzer(){
@@ -590,6 +690,7 @@ function resetAnalyzer(){
   document.getElementById('analyzeBtn').disabled=false;
   document.getElementById('strategyInput').value='';
   document.querySelectorAll('.lb-line').forEach(l=>l.classList.remove('on'));
+  document.getElementById('sharePreview').classList.remove('show');
 }
 </script>
 </body>
