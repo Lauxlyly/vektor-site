@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VEKTOR Sample Audit — Pairs/Cointegration MR | STOP</title>
+<meta name="description" content="A real crypto strategy falsification report. Beta-hedged residual mean-reversion — verdict: STOP. Full methodology, reproducible results.">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d0d14;
+    color: #d1d5db;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 17px;
+    line-height: 1.8;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+  nav {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 48px; padding-bottom: 20px;
+    border-bottom: 1px solid #1f2937;
+    font-family: 'Courier New', monospace; font-size: 13px;
+  }
+  .logo { color: #7c3aed; font-weight: 700; letter-spacing: 3px; }
+  .nav-back { color: #4b5563; text-decoration: none; }
+  .nav-back:hover { color: #a78bfa; }
+
+  .report-meta {
+    font-family: 'Courier New', monospace; font-size: 12px;
+    color: #4b5563; letter-spacing: 1px; text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-size: clamp(24px, 4vw, 34px); color: #f9fafb; font-weight: 700;
+    line-height: 1.2; margin-bottom: 20px;
+  }
+  .verdict-bar {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
+    border-radius: 8px; padding: 16px 20px; margin: 28px 0;
+  }
+  .verdict-label { font-family: 'Courier New', monospace; font-size: 11px; color: #6b7280; letter-spacing: 2px; text-transform: uppercase; }
+  .verdict-value { font-family: 'Courier New', monospace; font-size: 26px; font-weight: 900; color: #ef4444; letter-spacing: 4px; }
+  .verdict-desc { font-size: 14px; color: #9ca3af; }
+
+  h2 { font-size: 20px; color: #f3f4f6; font-weight: 700; margin: 40px 0 12px; border-bottom: 1px solid #1f2937; padding-bottom: 8px; }
+  p { margin-bottom: 16px; }
+  ul, ol { padding-left: 24px; margin-bottom: 16px; }
+  li { margin-bottom: 6px; }
+  strong { color: #e5e7eb; }
+  em { color: #a78bfa; font-style: normal; }
+
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; }
+  th { background: #111827; color: #9ca3af; font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 10px 14px; text-align: left; border-bottom: 2px solid #1f2937; }
+  td { padding: 10px 14px; border-bottom: 1px solid #1f2937; }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: #9ca3af; }
+  .neg { color: #ef4444; font-weight: 700; font-family: 'Courier New', monospace; }
+
+  .methodology-box {
+    background: #111827; border-left: 3px solid #7c3aed;
+    border-radius: 0 8px 8px 0; padding: 20px 22px; margin: 20px 0; font-size: 15px;
+  }
+
+  .cta-block {
+    margin-top: 60px; padding: 28px; background: #111827;
+    border: 1px solid #1f2937; border-radius: 10px; text-align: center;
+  }
+  .cta-block h3 { color: #f9fafb; font-size: 20px; margin-bottom: 10px; }
+  .cta-block p { color: #6b7280; font-size: 15px; margin-bottom: 20px; }
+  .cta-btn {
+    display: inline-block; background: #7c3aed; color: #fff;
+    padding: 13px 30px; border-radius: 6px; text-decoration: none;
+    font-weight: 700; font-size: 15px;
+    font-family: 'Courier New', monospace; letter-spacing: 1px;
+  }
+  .cta-btn:hover { background: #6d28d9; }
+  .cta-price { display: block; font-size: 13px; color: #4b5563; margin-top: 10px; font-family: 'Courier New', monospace; }
+
+  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #1f2937; font-size: 13px; color: #374151; font-family: 'Courier New', monospace; }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="logo">VEKTOR</span>
+  <a href="index.html" class="nav-back">← Back to main</a>
+</nav>
+
+<div class="report-meta">Sample Falsification Report · Pairs / Cointegration MR · 2026</div>
+<h1>Independent Crypto Strategy Falsification Report</h1>
+<p style="color:#6b7280;font-size:15px;margin-bottom:0">
+  <strong style="color:#9ca3af">Strategy audited:</strong> Beta-hedged residual mean-reversion across a 17-symbol crypto-perp universe (1h timeframe). Enter when a cointegrated pair's hedged residual dislocates (z-score), exit on normalization.
+</p>
+
+<div class="verdict-bar">
+  <div>
+    <div class="verdict-label">Verdict</div>
+    <div class="verdict-value">🔴 STOP</div>
+  </div>
+  <div class="verdict-desc">The edge does not survive out-of-sample once selection bias and a fair benchmark are accounted for. Do not deploy.</div>
+</div>
+
+<h2>1. Why most backtests lie</h2>
+<p>A profitable-looking backtest usually dies on one of these failure modes. Each is checked explicitly in this audit:</p>
+<ul>
+  <li><strong>Look-ahead / leakage</strong> — using information not available at decision time (e.g. full-sample fit for hedge ratios).</li>
+  <li><strong>Selection bias</strong> — picking the best of many candidates and reporting only the winner.</li>
+  <li><strong>No fair benchmark</strong> — "positive returns" that a <em>random</em> strategy with the same exposure also earns.</li>
+  <li><strong>Cost denial</strong> — ignoring fees, spread, slippage, funding costs.</li>
+  <li><strong>Multiple testing</strong> — a "significant" result found after N tries, uncorrected for the search.</li>
+  <li><strong>Survivorship</strong> — silently dropping delisted or failed instruments.</li>
+</ul>
+
+<h2>2. Methodology (fixed before results were seen)</h2>
+<div class="methodology-box">
+  <ul style="margin:0;padding-left:20px;">
+    <li><strong>Chronological split:</strong> train / validation / sealed holdout (holdout touched once, at the end).</li>
+    <li><strong>Pair selection on train only:</strong> pairs chosen by correlation + Dickey-Fuller residual stationarity — never peeking at validation/holdout.</li>
+    <li><strong>Frozen hedge ratios:</strong> fit on train data only, then locked. No full-sample look-ahead.</li>
+    <li><strong>Realistic costs:</strong> round-trip fees + 15 bps slippage stress, both legs.</li>
+    <li><strong>The fair benchmark (decisive test):</strong> strategy must beat a <em>costed, beta-neutral, random-entry null</em> matched on trade count, direction mix, and holding period.</li>
+    <li><strong>Selection correction:</strong> raw p-value Bonferroni-corrected against lifetime search count.</li>
+  </ul>
+</div>
+
+<h2>3. Results (out-of-sample)</h2>
+<table>
+  <tr><th>Metric</th><th>Value</th></tr>
+  <tr><td>Stationary pairs selected on train</td><td>8 (e.g. BTC-ETH, ETH-SOL, AVAX-LINK)</td></tr>
+  <tr><td>Out-of-sample trades</td><td>102</td></tr>
+  <tr><td>OOS mean net return / trade</td><td class="neg">−0.034% (negative after costs)</td></tr>
+  <tr><td>p-value vs beta-neutral random-entry null</td><td class="neg">0.45 (does not beat random)</td></tr>
+  <tr><td>Selection-corrected p (Bonferroni)</td><td class="neg">1.00</td></tr>
+</table>
+<p>The residual reversion does <strong>not</strong> beat a random-entry strategy with the same exposure — and after costs the out-of-sample average is slightly negative. The apparent in-sample "convergence" was selection + hedge-fit artifacts, exactly what the protocol strips out.</p>
+
+<h2>4. Verdict: 🔴 STOP</h2>
+<p>Do not deploy. This is not a tradable edge; it is noise that looks like structure until tested against a fair benchmark out-of-sample. Deploying it would spend real fees to earn a negative expectancy.</p>
+
+<h2>5. What would change the verdict</h2>
+<ul>
+  <li>OOS mean <strong>positive after costs</strong> AND random-null p <strong>&lt; 0.05</strong> in the same window;</li>
+  <li>Stability across seeds and a second <strong>out-of-family</strong> universe;</li>
+  <li>Survival of the <strong>sealed holdout</strong> (spent once, never tuned on);</li>
+  <li>A <strong>named economic mechanism + counterparty</strong> — not just a statistical pattern.</li>
+</ul>
+<p>Absent these, STOP stands. We re-audit any revised version as a new submission.</p>
+
+<div class="cta-block">
+  <h3>Audit your strategy</h3>
+  <p>Send your crypto strategy, backtest, or trade log → leakage checks, cost stress, random-entry &amp; permuted nulls, walk-forward, multiple-testing disclosure, GO / STOP / REWORK verdict.</p>
+  <a class="cta-btn" href="index.html#audit">Request an audit — $150 →</a>
+  <span class="cta-price">fixed fee · results within 48h · no signals, no alpha promises</span>
+</div>
+
+<footer>
+  VEKTOR research-control methodology · append-only experiment ledger · dual-null gauntlet · 19 strategies tested, 1 survivor<br>
+  Sample based on a real audit run. No profit claim is made or implied.
+</footer>
+
+</body>
+</html>
