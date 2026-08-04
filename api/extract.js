@@ -1,12 +1,57 @@
 // Pull strategy text from a social/media link so the user doesn't have to type it.
-//  - YouTube (incl. Shorts): full spoken transcript via youtube-transcript, + title/description
-//  - Instagram / TikTok / X / generic: Open Graph caption (og:title + og:description)
-// Degrades gracefully: if a transcript isn't available, falls back to OG caption;
-// if nothing is readable, returns a clear message telling the user to paste manually.
+//  - PRIMARY: Supadata universal transcript API (real speech-to-text) for
+//    YouTube / Instagram / TikTok / X — handles reels where the strategy is SPOKEN,
+//    and works around YouTube blocking Vercel datacenter IPs. Needs SUPADATA_API_KEY.
+//  - FALLBACK (no key / quota / failure): youtube-transcript lib + Open Graph caption.
+// Degrades gracefully; if nothing is readable, tells the user to paste manually.
 
 const { YoutubeTranscript } = require('youtube-transcript');
 
 const MAX_TEXT = 6000;
+
+// ── Supadata universal transcript API ─────────────────────────────
+// GET https://api.supadata.ai/v1/transcript?url=...&text=true  (header x-api-key)
+// mode=auto → native caption first, then AI speech-to-text. 100 free req/month.
+async function fetchSupadataTranscript(url) {
+  const key = process.env.SUPADATA_API_KEY;
+  if (!key) return null;
+  const endpoint = 'https://api.supadata.ai/v1/transcript?text=true&mode=auto&url=' + encodeURIComponent(url);
+  try {
+    const resp = await fetch(endpoint, { headers: { 'x-api-key': key } });
+    if (resp.status === 202) {
+      const { jobId } = await resp.json();
+      return jobId ? await pollSupadataJob(jobId, key) : null;
+    }
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return normalizeSupadataContent(data.content);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function pollSupadataJob(jobId, key, tries = 6) {
+  const url = 'https://api.supadata.ai/v1/transcript/' + encodeURIComponent(jobId);
+  for (let i = 0; i < tries; i++) {
+    await new Promise(r => setTimeout(r, 2500));
+    try {
+      const resp = await fetch(url, { headers: { 'x-api-key': key } });
+      if (!resp.ok) continue;
+      const d = await resp.json();
+      if (d.status === 'completed') return normalizeSupadataContent(d.content);
+      if (d.status === 'failed') return null;
+    } catch (e) { /* keep polling */ }
+  }
+  return null;
+}
+
+function normalizeSupadataContent(content) {
+  let text = '';
+  if (typeof content === 'string') text = content;
+  else if (Array.isArray(content)) text = content.map(c => c && c.text ? c.text : '').join(' ');
+  text = (text || '').replace(/\s+/g, ' ').trim();
+  return text.length > 20 ? text : null;
+}
 
 // Generic placeholder captions that platforms serve for deleted/blocked/login-walled
 // content. Importing these into the strategy box is worse than nothing.
@@ -122,6 +167,19 @@ module.exports = async function handler(req, res) {
   const platformLabel = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok', x: 'X', web: 'the page' }[platform];
 
   try {
+    // PRIMARY: real transcript (spoken words) via Supadata — works for reels/videos
+    // on all platforms, including cases our OG/caption path can't reach.
+    const supa = await fetchSupadataTranscript(clean);
+    if (supa) {
+      return res.json({
+        text: supa.slice(0, MAX_TEXT),
+        platform,
+        source: 'transcript',
+        note: `Pulled the spoken transcript from ${platformLabel}.`,
+      });
+    }
+
+    // FALLBACK below (no Supadata key, quota reached, private video, or unsupported)
     if (platform === 'youtube') {
       const id = extractYouTubeId(clean);
       if (!id) {
