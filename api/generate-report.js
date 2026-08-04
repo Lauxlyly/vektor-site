@@ -1,5 +1,15 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const Stripe = require('stripe');
+const { Resend } = require('resend');
+const { buildEmail } = require('../lib/report-email');
+
+function makeAuditId(sessionId) {
+  const d = new Date();
+  const ymd = d.getFullYear().toString() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+  const src = (sessionId || '').replace(/[^a-zA-Z0-9]/g, '');
+  const tail = (src.slice(-4) || String(Math.floor(1000 + Math.random() * 9000))).toUpperCase();
+  return `VK-${ymd}-${tail}`;
+}
 
 const REPORT_PROMPT = (strategy) => `You are VEKTOR, an independent crypto strategy falsification system. A trader has paid $99 for a full audit. Write a complete, professional falsification report.
 
@@ -78,32 +88,64 @@ module.exports = async function handler(req, res) {
   if (!process.env.STRIPE_SECRET_KEY) {
     return res.status(503).json({ error: 'Payment verification not configured.' });
   }
+  let customerEmail = null;
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     const session = await stripe.checkout.sessions.retrieve(session_id);
     if (session.payment_status !== 'paid') {
       return res.status(403).json({ error: 'Payment not confirmed. Please complete checkout first.' });
     }
+    customerEmail = session.customer_details && session.customer_details.email;
   } catch (err) {
     console.error('Stripe error:', err.message);
     return res.status(403).json({ error: 'Could not verify payment. If you paid, contact laurin85@gmail.com.' });
   }
 
   // Generate report
+  const cleanStrategy = strategy.slice(0, 3000);
+  let report;
   try {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 3000,
-      messages: [{ role: 'user', content: REPORT_PROMPT(strategy.slice(0, 3000)) }],
+      messages: [{ role: 'user', content: REPORT_PROMPT(cleanStrategy) }],
     });
     const raw = msg.content[0].text.trim();
     const match = raw.match(/\{[\s\S]*\}/);
-    const report = match ? JSON.parse(match[0]) : null;
+    report = match ? JSON.parse(match[0]) : null;
     if (!report) throw new Error('Invalid JSON from model');
-    res.json({ report });
   } catch (err) {
     console.error('generate-report error:', err.message);
-    res.status(500).json({ error: 'Report generation failed. Please try refreshing the page.' });
+    return res.status(500).json({ error: 'Report generation failed. Please try refreshing the page.' });
+  }
+
+  // Return the report to the browser immediately (does not block on email)
+  res.json({ report });
+
+  // Fire-and-forget: email a copy to the customer + owner (best effort)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const auditId = makeAuditId(session_id);
+      const html = buildEmail(cleanStrategy, report, auditId);
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const verdict = report.verdict.replace(/_/g, ' ');
+      if (customerEmail) {
+        await resend.emails.send({
+          from: 'VEKTOR Audit <onboarding@resend.dev>',
+          to: customerEmail,
+          subject: `${report.verdict_emoji} Your VEKTOR Strategy Audit — ${verdict} (#${auditId})`,
+          html,
+        });
+      }
+      await resend.emails.send({
+        from: 'VEKTOR System <onboarding@resend.dev>',
+        to: 'laurin85@gmail.com',
+        subject: `[VEKTOR] Audit #${auditId} — ${report.verdict} — ${customerEmail || 'unknown email'}`,
+        html,
+      });
+    } catch (err) {
+      console.error('Email send error (non-fatal):', err.message);
+    }
   }
 };

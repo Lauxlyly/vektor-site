@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Your VEKTOR Audit — Full Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;padding:32px 20px;}
@@ -34,7 +35,10 @@ body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 
 /* Report */
 #stateReport{padding-top:8px;}
-.verdict-banner{border-radius:14px;padding:28px 28px;margin-bottom:24px;text-align:center;}
+.audit-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-family:monospace;font-size:10px;letter-spacing:1px;color:#374151;text-transform:uppercase;}
+.audit-meta .aid{color:#7c3aed;}
+.verdict-banner{position:relative;border-radius:14px;padding:28px 28px;margin-bottom:24px;text-align:center;animation:revealVerdict .55s cubic-bezier(.34,1.56,.64,1) both;}
+@keyframes revealVerdict{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
 .vb-emoji{font-size:44px;margin-bottom:10px;}
 .vb-label{font-family:monospace;font-size:28px;font-weight:900;letter-spacing:4px;margin-bottom:12px;}
 .vb-summary{font-size:15px;line-height:1.75;color:#cbd5e1;max-width:560px;margin:0 auto;}
@@ -50,6 +54,9 @@ body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .test-name{font-size:13px;font-weight:600;color:#cbd5e1;margin-bottom:4px;}
 .test-finding{font-size:12px;color:#64748b;line-height:1.6;}
 .test-badge{font-family:monospace;font-size:10px;font-weight:700;letter-spacing:1px;padding:4px 10px;border-radius:4px;white-space:nowrap;align-self:start;margin-top:1px;}
+.test-bar-track{grid-column:1 / -1;height:5px;background:#0c0c1a;border-radius:3px;overflow:hidden;margin-top:2px;}
+.test-bar-fill{height:100%;border-radius:3px;width:0;animation:growBar .9s cubic-bezier(.22,1,.36,1) forwards;}
+@keyframes growBar{from{width:0}}
 
 /* Change list */
 .change-list{padding:16px 20px;list-style:none;}
@@ -69,7 +76,10 @@ body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .btn-dl{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;}
 .btn-x{background:#1a1a2a;border:1px solid rgba(255,255,255,.1);color:#e2e8f0;}
 .btn-wa{background:#1a2e1a;border:1px solid rgba(74,222,128,.2);color:#4ade80;}
+.btn-li{background:#0a1a2e;border:1px solid rgba(56,132,255,.25);color:#5b9dff;}
+.btn-tg{background:#0a1c2a;border:1px solid rgba(56,169,255,.25);color:#4aa9ff;}
 .btn-cp{background:#0a0a16;border:1px solid rgba(124,58,237,.3);color:#a78bfa;}
+.act-btn:disabled{opacity:.55;cursor:default;transform:none;}
 .back-link{display:inline-block;font-size:13px;color:#374151;text-decoration:none;font-family:monospace;}
 .back-link:hover{color:#7c3aed;}
 .note{font-size:11px;color:#1f2937;font-family:monospace;margin-top:16px;}
@@ -127,6 +137,11 @@ body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 
   <!-- REPORT STATE -->
   <div id="stateReport" hidden>
+    <!-- Audit meta -->
+    <div class="audit-meta">
+      <span class="aid" id="auditId">AUDIT #VK-—</span>
+      <span id="auditDate"></span>
+    </div>
     <!-- Verdict banner -->
     <div class="verdict-banner" id="verdictBanner">
       <div class="vb-emoji" id="vbEmoji"></div>
@@ -154,14 +169,16 @@ body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 
     <!-- Actions -->
     <div class="actions">
-      <button class="act-btn btn-dl" onclick="downloadReport()">↓ Download Report</button>
+      <button class="act-btn btn-dl" id="dlBtn" onclick="downloadReport()">↓ Download PDF</button>
       <button class="act-btn btn-x" onclick="shareX()">𝕏 Post on X</button>
+      <button class="act-btn btn-li" onclick="shareLI()">in LinkedIn</button>
+      <button class="act-btn btn-tg" onclick="shareTG()">✈ Telegram</button>
       <button class="act-btn btn-wa" onclick="shareWA()">WhatsApp</button>
       <button class="act-btn btn-cp" id="cpBtn" onclick="copyVerdict()">Copy verdict</button>
     </div>
 
     <a class="back-link" href="/">← Test another strategy</a>
-    <div class="note">A copy of this report has also been sent to your email.</div>
+    <div class="note">Download your report above to keep it. A copy is also emailed to your checkout address.</div>
   </div>
 
   <!-- ERROR STATE -->
@@ -195,9 +212,33 @@ function show(id) {
   });
 }
 
+// Map a test result to a visual score bar (width % + color)
+function barFor(result, color) {
+  const r = (result || '').toUpperCase();
+  if (r === 'PASS') return { pct: 92, color: '#4ade80' };
+  if (r === 'MARGINAL') return { pct: 50, color: '#fbbf24' };
+  if (r === 'FAIL') return { pct: 8, color: '#ef4444' };
+  return { pct: 30, color: '#94a3b8' }; // UNABLE TO TEST / unknown
+}
+
+// Deterministic audit ID from the Stripe session so it's stable on reload
+function makeAuditId() {
+  const d = new Date();
+  const ymd = d.getFullYear().toString() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+  const src = (SESSION_ID || '').replace(/[^a-zA-Z0-9]/g,'');
+  const tail = (src.slice(-4) || String(Math.floor(1000+Math.random()*9000))).toUpperCase();
+  return `VK-${ymd}-${tail}`;
+}
+let _auditId = '';
+
 function renderReport(report) {
   _report = report;
   const color = report.verdict_color || '#fbbf24';
+
+  _auditId = makeAuditId();
+  document.getElementById('auditId').textContent = 'AUDIT #' + _auditId;
+  document.getElementById('auditDate').textContent = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+
   const banner = document.getElementById('verdictBanner');
   banner.style.background = color + '10';
   banner.style.border = '2px solid ' + color + '40';
@@ -208,16 +249,20 @@ function renderReport(report) {
 
   const testsBody = document.getElementById('testsBody');
   testsBody.innerHTML = '';
-  (report.tests || []).forEach(t => {
+  (report.tests || []).forEach((t, i) => {
     const row = document.createElement('div');
     row.className = 'test-row';
     const rc = t.result_color || '#94a3b8';
+    const bar = barFor(t.result, rc);
     row.innerHTML = `
       <div>
         <div class="test-name">${t.name}</div>
         <div class="test-finding">${t.finding}</div>
       </div>
-      <div class="test-badge" style="background:${rc}18;border:1px solid ${rc}44;color:${rc};">${t.result}</div>`;
+      <div class="test-badge" style="background:${rc}18;border:1px solid ${rc}44;color:${rc};">${t.result}</div>
+      <div class="test-bar-track">
+        <div class="test-bar-fill" style="width:${bar.pct}%;background:${bar.color};animation-delay:${i*0.08}s;"></div>
+      </div>`;
     testsBody.appendChild(row);
   });
 
@@ -271,58 +316,100 @@ function startWithFallback() {
   fetchReport(s);
 }
 
-// Download report as HTML
-function downloadReport() {
-  if (!_report) return;
+// Build a print-optimised (light) report document for the PDF
+function buildPrintable() {
   const r = _report;
   const color = r.verdict_color || '#fbbf24';
   const testRows = (r.tests || []).map(t => `
     <tr>
-      <td style="padding:12px 16px;border-bottom:1px solid #0f0f20;font-size:13px;color:#cbd5e1;font-weight:600;">${t.name}</td>
-      <td style="padding:12px 16px;border-bottom:1px solid #0f0f20;">
-        <span style="background:${t.result_color}18;border:1px solid ${t.result_color}44;color:${t.result_color};font-family:monospace;font-size:10px;font-weight:700;letter-spacing:1px;padding:3px 9px;border-radius:4px;">${t.result}</span>
+      <td style="padding:11px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#111827;font-weight:600;vertical-align:top;">${t.name}</td>
+      <td style="padding:11px 14px;border-bottom:1px solid #e5e7eb;vertical-align:top;">
+        <span style="background:${t.result_color}22;color:${t.result_color};font-family:monospace;font-size:10px;font-weight:700;letter-spacing:1px;padding:3px 8px;border-radius:4px;white-space:nowrap;">${t.result}</span>
       </td>
-      <td style="padding:12px 16px;border-bottom:1px solid #0f0f20;font-size:13px;color:#94a3b8;line-height:1.6;">${t.finding}</td>
+      <td style="padding:11px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#4b5563;line-height:1.6;">${t.finding}</td>
     </tr>`).join('');
-  const changeItems = (r.what_would_change_verdict || []).map(i => `<li style="margin-bottom:8px;color:#94a3b8;font-size:13px;">${i}</li>`).join('');
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>VEKTOR Audit Report</title></head>
-<body style="background:#050508;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:32px 24px;max-width:720px;margin:0 auto;">
-<div style="font-family:monospace;font-size:13px;font-weight:800;letter-spacing:4px;color:#a78bfa;margin-bottom:6px;">VEKTOR</div>
-<div style="font-family:monospace;font-size:11px;color:#374151;margin-bottom:36px;">Independent Strategy Falsification · ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
-<div style="background:${color}10;border:2px solid ${color}40;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
-  <div style="font-size:40px;margin-bottom:8px;">${r.verdict_emoji}</div>
-  <div style="font-family:monospace;font-size:26px;font-weight:900;letter-spacing:4px;color:${color};margin-bottom:12px;">${r.verdict.replace(/_/g,' ')}</div>
-  <div style="font-size:14px;color:#cbd5e1;line-height:1.7;">${r.executive_summary}</div>
-</div>
-${_strategy ? `<div style="background:#080812;border:1px solid #1a1a2e;border-radius:8px;padding:14px 16px;margin-bottom:24px;"><div style="font-family:monospace;font-size:10px;letter-spacing:2px;color:#374151;margin-bottom:6px;">STRATEGY SUBMITTED</div><div style="font-size:13px;color:#4b5563;line-height:1.65;">${_strategy}</div></div>` : ''}
-<div style="background:#0a0a16;border:1px solid rgba(124,58,237,.2);border-radius:12px;overflow:hidden;margin-bottom:24px;">
-  <div style="padding:14px 20px;background:rgba(124,58,237,.07);border-bottom:1px solid rgba(124,58,237,.12);font-family:monospace;font-size:11px;letter-spacing:2px;color:#7c3aed;">6 INDEPENDENT TESTS</div>
-  <table style="width:100%;border-collapse:collapse;">${testRows}</table>
-</div>
-<div style="background:#0a0a16;border:1px solid rgba(124,58,237,.2);border-radius:12px;padding:20px;margin-bottom:24px;">
-  <div style="font-family:monospace;font-size:11px;letter-spacing:2px;color:#7c3aed;margin-bottom:12px;">WHAT WOULD CHANGE THIS VERDICT</div>
-  <ul style="padding-left:20px;margin:0;">${changeItems}</ul>
-</div>
-<div style="background:#060610;border-left:3px solid #7c3aed;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:32px;">
-  <div style="font-family:monospace;font-size:10px;letter-spacing:2px;color:#4c1d95;margin-bottom:6px;">BOTTOM LINE</div>
-  <div style="font-size:15px;color:#e2e8f0;font-weight:600;line-height:1.6;">${r.bottom_line}</div>
-</div>
-<div style="font-family:monospace;font-size:11px;color:#1f2937;text-align:center;border-top:1px solid #0d0d18;padding-top:20px;">VEKTOR · independent strategy falsification · not investment advice</div>
-</body></html>`;
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'vektor-audit-report.html'; a.click();
-  URL.revokeObjectURL(url);
+  const changeItems = (r.what_would_change_verdict || []).map(i => `<li style="margin-bottom:7px;color:#374151;font-size:12px;line-height:1.6;">${i}</li>`).join('');
+  const el = document.createElement('div');
+  el.style.cssText = 'background:#fff;color:#111827;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;padding:36px 40px;width:720px;';
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #7c3aed;padding-bottom:14px;margin-bottom:26px;">
+      <div>
+        <div style="font-family:monospace;font-size:15px;font-weight:800;letter-spacing:4px;color:#7c3aed;">VEKTOR</div>
+        <div style="font-family:monospace;font-size:10px;color:#9ca3af;margin-top:3px;">Independent Strategy Falsification</div>
+      </div>
+      <div style="text-align:right;font-family:monospace;font-size:10px;color:#9ca3af;">
+        <div style="color:#7c3aed;font-weight:700;">AUDIT #${_auditId}</div>
+        <div>${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
+      </div>
+    </div>
+    <div style="background:${color}12;border:2px solid ${color}55;border-radius:12px;padding:22px;text-align:center;margin-bottom:24px;">
+      <div style="font-size:34px;margin-bottom:6px;">${r.verdict_emoji}</div>
+      <div style="font-family:monospace;font-size:24px;font-weight:900;letter-spacing:4px;color:${color};margin-bottom:10px;">${r.verdict.replace(/_/g,' ')}</div>
+      <div style="font-size:13px;color:#374151;line-height:1.7;">${r.executive_summary}</div>
+    </div>
+    ${_strategy ? `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:22px;"><div style="font-family:monospace;font-size:9px;letter-spacing:2px;color:#9ca3af;margin-bottom:5px;">STRATEGY SUBMITTED</div><div style="font-size:12px;color:#6b7280;line-height:1.6;">${_strategy}</div></div>` : ''}
+    <div style="font-family:monospace;font-size:11px;letter-spacing:2px;color:#7c3aed;margin-bottom:8px;">6 INDEPENDENT TESTS</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">${testRows}</table>
+    <div style="font-family:monospace;font-size:11px;letter-spacing:2px;color:#7c3aed;margin-bottom:8px;">WHAT WOULD CHANGE THIS VERDICT</div>
+    <ul style="padding-left:20px;margin:0 0 24px;">${changeItems}</ul>
+    <div style="background:#f5f3ff;border-left:3px solid #7c3aed;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:28px;">
+      <div style="font-family:monospace;font-size:9px;letter-spacing:2px;color:#7c3aed;margin-bottom:5px;">BOTTOM LINE</div>
+      <div style="font-size:14px;color:#111827;font-weight:600;line-height:1.6;">${r.bottom_line}</div>
+    </div>
+    <div style="font-family:monospace;font-size:10px;color:#9ca3af;text-align:center;border-top:1px solid #e5e7eb;padding-top:16px;">VEKTOR · independent strategy falsification · pre-registered methodology · not investment advice</div>`;
+  return el;
+}
+
+// Download report as a real PDF (client-side, no server)
+function downloadReport() {
+  if (!_report) return;
+  const btn = document.getElementById('dlBtn');
+  const orig = btn.textContent;
+
+  // If the PDF library failed to load (e.g. offline / blocked CDN), fall back to print
+  if (typeof window.html2pdf !== 'function') {
+    window.print();
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Generating PDF…';
+
+  const el = buildPrintable();
+  const holder = document.createElement('div');
+  holder.style.cssText = 'position:fixed;left:-9999px;top:0;';
+  holder.appendChild(el);
+  document.body.appendChild(holder);
+
+  const opt = {
+    margin: [10, 10, 10, 10],
+    filename: `VEKTOR-audit-${_auditId}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css'] },
+  };
+
+  window.html2pdf().set(opt).from(el).save()
+    .then(() => { document.body.removeChild(holder); btn.disabled = false; btn.textContent = orig; })
+    .catch(() => {
+      document.body.removeChild(holder);
+      btn.disabled = false; btn.textContent = orig;
+      alert('PDF export failed. Try again, or use your browser’s Print → Save as PDF.');
+    });
 }
 
 function getShareText() {
   if (!_report) return '';
   const v = _report.verdict.replace(/_/g,' ');
-  return `Just got my strategy VEKTOR-audited.\n\nVerdict: ${_report.verdict_emoji} ${v}\n\n${_report.bottom_line}\n\nTest yours free → https://vektor-site-xi.vercel.app`;
+  const id = _auditId ? ` (Audit #${_auditId})` : '';
+  return `Just got my strategy independently falsified by VEKTOR${id}.\n\nVerdict: ${_report.verdict_emoji} ${v}\n\n${_report.bottom_line}\n\nTest yours free → https://vektor-site-xi.vercel.app`;
 }
+const SITE_URL = 'https://vektor-site-xi.vercel.app';
 function shareX() { window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(getShareText()), '_blank'); }
 function shareWA() { window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(getShareText()), '_blank'); }
+function shareTG() { window.open('https://t.me/share/url?url=' + encodeURIComponent(SITE_URL) + '&text=' + encodeURIComponent(getShareText()), '_blank'); }
+// LinkedIn ignores prefilled text via API — share the URL only (avoids a broken empty dialog)
+function shareLI() { window.open('https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(SITE_URL), '_blank'); }
 function copyVerdict() {
   navigator.clipboard.writeText(getShareText()).then(() => {
     const btn = document.getElementById('cpBtn');
