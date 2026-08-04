@@ -111,6 +111,20 @@ section{position:relative;z-index:1;}
 .free-note{text-align:center;font-family:monospace;font-size:11px;color:#1f2937;margin-top:10px;}
 .free-note em{color:#374151;}
 
+/* URL import */
+.url-row{display:flex;gap:8px;}
+.url-row input{flex:1;min-width:0;}
+.fetch-btn{flex-shrink:0;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.35);color:#a78bfa;padding:0 18px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s,opacity .2s;white-space:nowrap;}
+.fetch-btn:hover{background:rgba(124,58,237,.28);}
+.fetch-btn:disabled{opacity:.55;cursor:default;}
+.url-hint{font-family:monospace;font-size:10px;color:#374151;margin-top:6px;letter-spacing:.3px;}
+.url-status{font-size:12px;margin-top:9px;line-height:1.5;min-height:0;}
+.url-status.ok{color:#4ade80;}
+.url-status.err{color:#fca5a5;}
+.url-status.load{color:#a78bfa;}
+.field-divider{display:flex;align-items:center;gap:12px;margin:18px 0 14px;color:#374151;font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;}
+.field-divider::before,.field-divider::after{content:'';flex:1;height:1px;background:rgba(124,58,237,.15);}
+
 /* LOADING */
 .loading-box{display:none;padding:22px 26px;border-top:1px solid rgba(124,58,237,.1);font-family:monospace;font-size:12px;line-height:2.2;}
 .loading-box.show{display:block;}
@@ -379,6 +393,18 @@ footer a{color:#374151;}
       </div>
       <div class="ac-body" id="formArea">
         <div class="field">
+          <label>Saw it in a video or post? Paste the link</label>
+          <div class="url-row">
+            <input id="urlInput" type="url" placeholder="youtube.com/... · instagram.com/reel/... · tiktok.com/... · x.com/...">
+            <button class="fetch-btn" id="fetchBtn" onclick="fetchFromUrl()">Fetch</button>
+          </div>
+          <div class="url-hint">YouTube → full transcript · Instagram / TikTok / X → caption text</div>
+          <div class="url-status" id="urlStatus"></div>
+        </div>
+
+        <div class="field-divider">then review &amp; edit</div>
+
+        <div class="field">
           <label>Describe the strategy *</label>
           <textarea id="strategyInput" placeholder="E.g. &quot;Buy BTC when RSI crosses below 30 on 1h chart, sell when it crosses back above 50. Saw this on Instagram — 80% win rate claimed.&quot;
 
@@ -628,6 +654,41 @@ demoLines.forEach((l,i)=>setTimeout(()=>l.classList.add('show'),700+i*360));
 // ── INTERACTIVE ANALYZER ──
 let _lastStrategy='', _lastLabel='', _lastFlags=[], _lastFinding='';
 
+// Pull strategy text from a pasted social/media link
+async function fetchFromUrl(){
+  const url=document.getElementById('urlInput').value.trim();
+  const status=document.getElementById('urlStatus');
+  const btn=document.getElementById('fetchBtn');
+  if(!/^https?:\/\//i.test(url)){
+    status.className='url-status err';
+    status.textContent='Paste a full link starting with http.';
+    return;
+  }
+  btn.disabled=true; const orig=btn.textContent; btn.textContent='…';
+  status.className='url-status load';
+  status.textContent='Reading the link — fetching transcript / caption…';
+  try{
+    const resp=await fetch('/api/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+    const data=await resp.json();
+    if(!resp.ok){
+      status.className='url-status err';
+      status.textContent=data.error||'Could not read that link. Paste the text manually.';
+      return;
+    }
+    const ta=document.getElementById('strategyInput');
+    // Append if the user already typed something, otherwise replace
+    ta.value = ta.value.trim() ? (ta.value.trim()+'\n\n'+data.text) : data.text;
+    ta.focus();
+    status.className='url-status ok';
+    status.textContent='✓ '+(data.note||'Text imported.')+' Review and edit below, then Analyze.';
+  }catch(e){
+    status.className='url-status err';
+    status.textContent='Network error reading the link. Paste the text manually.';
+  }finally{
+    btn.disabled=false; btn.textContent=orig;
+  }
+}
+
 async function runAnalysis(){
   const strategy=document.getElementById('strategyInput').value.trim();
   if(strategy.length<15){
@@ -749,6 +810,8 @@ function resetAnalyzer(){
   document.getElementById('resultBox').classList.remove('show');
   document.getElementById('analyzeBtn').disabled=false;
   document.getElementById('strategyInput').value='';
+  document.getElementById('urlInput').value='';
+  const us=document.getElementById('urlStatus');us.textContent='';us.className='url-status';
   document.querySelectorAll('.lb-line').forEach(l=>l.classList.remove('on'));
   document.getElementById('sharePreview').classList.remove('show');
 }
