@@ -16,8 +16,12 @@ async function fetchSupadataTranscript(url) {
   const key = process.env.SUPADATA_API_KEY;
   if (!key) return null;
   const endpoint = 'https://api.supadata.ai/v1/transcript?text=true&mode=auto&url=' + encodeURIComponent(url);
+  // Abort a slow transcription before the function's hard timeout so we can
+  // still fall back to the caption instead of returning a raw 504.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 45000);
   try {
-    const resp = await fetch(endpoint, { headers: { 'x-api-key': key } });
+    const resp = await fetch(endpoint, { headers: { 'x-api-key': key }, signal: ctrl.signal });
     if (resp.status === 202) {
       const { jobId } = await resp.json();
       return jobId ? await pollSupadataJob(jobId, key) : null;
@@ -27,6 +31,8 @@ async function fetchSupadataTranscript(url) {
     return normalizeSupadataContent(data.content);
   } catch (e) {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
