@@ -157,7 +157,7 @@ module.exports = async function handler(req, res) {
         source,
         note: source === 'transcript'
           ? `Pulled the full spoken transcript from ${platformLabel}.`
-          : `No transcript available — pulled the ${platformLabel} title/description instead.`,
+          : `Pulled the ${platformLabel} title & description. Add any spoken details from the video yourself.`,
       });
     }
 
