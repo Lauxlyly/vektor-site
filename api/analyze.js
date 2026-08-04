@@ -17,6 +17,7 @@ module.exports = async function handler(req, res) {
   const msg = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 900,
+    temperature: 0.2, // low → consistent screening verdict on repeat runs of the same strategy
     messages: [{
       role: 'user',
       content: `You are VEKTOR — an independent crypto strategy falsification system used by serious traders to screen strategies before deployment. Give a preliminary screening assessment.

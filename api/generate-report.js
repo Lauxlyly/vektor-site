@@ -109,6 +109,7 @@ module.exports = async function handler(req, res) {
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 3000,
+      temperature: 0.2, // low → same strategy gives a consistent verdict/report on repeat runs
       messages: [{ role: 'user', content: REPORT_PROMPT(cleanStrategy) }],
     });
     const raw = msg.content[0].text.trim();
