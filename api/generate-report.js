@@ -19,14 +19,14 @@ ${strategy}
 """
 
 # THE ONE RULE THAT MATTERS
-You did NOT run any computation. You have no data feed, no backtest engine, no trade log. Therefore you MUST NOT claim any statistic was calculated. A check may ONLY be labelled PASS / FAIL / MARGINAL if an actual computation was performed on real trade or price data — which here it was not. With only a narrative description, EVERY check result is "NOT TESTED" (or "INSUFFICIENT EVIDENCE" if partial data was given). Labelling an un-run check "FAIL" is forbidden and self-refuting.
+You did NOT run any computation. You have no data feed, no backtest engine, no trade log. Therefore you MUST NOT claim any statistic was calculated. A check may ONLY be labelled PASS / FAIL / MARGINAL if an actual computation was performed on real trade or price data — which here it was not. With only a narrative description, EVERY check result is "NEEDS DATA" (or "LIMITED DATA" if partial data was given). Labelling an un-run check "FAIL" is forbidden and self-refuting.
 
 # RESULT LABELS (definitions)
 - PASS — check executed on data; pre-registered criterion met. (Not possible from a description.)
 - FAIL — check executed on data; criterion violated. (Not possible from a description.)
 - MARGINAL — check executed; result near threshold. (Not possible from a description.)
-- NOT TESTED — required inputs (formal ruleset and/or trade/price data) absent; check could not be run. ← default for a description-only submission.
-- INSUFFICIENT EVIDENCE — some inputs present but too sparse for a reliable result.
+- NEEDS DATA — required inputs (formal ruleset and/or trade/price data) absent; check could not be run. ← default for a description-only submission.
+- LIMITED DATA — some inputs present but too sparse for a reliable result.
 
 # HOW EACH CHECK'S "finding" MUST READ (separate the un-run check from your opinion)
 "This check requires [what it needs: permuted entry timing / walk-forward OOS windows / a fee+slippage model / a defined entry rule / the count of variants tried]. The submission contained only a narrative description, so no computation was performed. Qualitative note (opinion, not a test result): [your honest risk observation]."
@@ -38,7 +38,7 @@ You did NOT run any computation. You have no data feed, no backtest engine, no t
 - Perpetual funding is PAID OR RECEIVED depending on side/sign — never describe it as a pure cost.
 - Say "posterior probability under stated priors" NOT "true Bayesian probability".
 - Do NOT assert trade direction (long/short, "profits in uptrends") unless the submission specifies it.
-- Only reference a "3× cost & slippage stress" if base fees were given and multiplied; otherwise it is NOT TESTED — no fee baseline available.
+- Only reference a "3× cost & slippage stress" if base fees were given and multiplied; otherwise it is NEEDS DATA — no fee baseline available.
 - Never invent p-values, Sharpe ratios, drawdowns, or trade counts.
 
 Return ONLY a valid JSON object — no markdown, no extra text:
@@ -48,7 +48,7 @@ Return ONLY a valid JSON object — no markdown, no extra text:
   "verdict_emoji": "🔴" | "🟠" | "🟡",
   "executive_summary": "2-3 clear sentences: what the submission actually is, the verdict, and the single most important reason — framed as a risk/plausibility judgement, not as a computed result.",
   "tests": [
-    { "name": "Look-ahead & Leakage Scan", "result": "NOT TESTED" | "INSUFFICIENT EVIDENCE" | "FAIL" | "PASS" | "MARGINAL", "result_color": "#94a3b8" | "#ef4444" | "#4ade80" | "#fbbf24", "finding": "Follow the finding template above." },
+    { "name": "Look-ahead & Leakage Scan", "result": "NEEDS DATA" | "LIMITED DATA" | "FAIL" | "PASS" | "MARGINAL", "result_color": "#94a3b8" | "#ef4444" | "#4ade80" | "#fbbf24", "finding": "Follow the finding template above." },
     { "name": "Cost & Slippage Stress", "result": "...", "result_color": "...", "finding": "..." },
     { "name": "Random-Entry Null Comparison", "result": "...", "result_color": "...", "finding": "..." },
     { "name": "Permuted-Timing Null", "result": "...", "result_color": "...", "finding": "..." },
@@ -63,7 +63,7 @@ Return ONLY a valid JSON object — no markdown, no extra text:
   "bottom_line": "One plain-language sentence: the honest verdict a non-technical reader should walk away with."
 }
 
-Colour mapping: NOT TESTED / INSUFFICIENT EVIDENCE → "#94a3b8"; FAIL → "#ef4444"; PASS → "#4ade80"; MARGINAL → "#fbbf24".
+Colour mapping: NEEDS DATA / LIMITED DATA → "#94a3b8"; FAIL → "#ef4444"; PASS → "#4ade80"; MARGINAL → "#fbbf24".
 Be direct and useful. The verdict and risk judgement can still be strong (a described blow-up system is clearly high-risk) — but never dress an opinion up as a completed statistical test.`;
 
 module.exports = async function handler(req, res) {
@@ -75,10 +75,18 @@ module.exports = async function handler(req, res) {
 
   const { session_id, strategy } = req.body || {};
 
-  if (!session_id) return res.status(400).json({ error: 'session_id required' });
-  if (!strategy || strategy.trim().length < 10) return res.status(400).json({ error: 'strategy required' });
+  // Input validation / size caps (reject junk + oversized bodies early)
+  if (typeof session_id !== 'string' || !/^cs_[a-zA-Z0-9_]{10,120}$/.test(session_id)) {
+    return res.status(400).json({ error: 'A valid Stripe session_id is required.' });
+  }
+  if (typeof strategy !== 'string' || strategy.trim().length < 10) {
+    return res.status(400).json({ error: 'strategy required' });
+  }
+  if (strategy.length > 20000) {
+    return res.status(413).json({ error: 'Strategy text is too long.' });
+  }
 
-  // Verify payment via Stripe
+  // Verify payment via Stripe — the ONLY way to unlock a paid report.
   if (!process.env.STRIPE_SECRET_KEY) {
     return res.status(503).json({ error: 'Payment verification not configured.' });
   }
@@ -86,8 +94,20 @@ module.exports = async function handler(req, res) {
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     const session = await stripe.checkout.sessions.retrieve(session_id);
-    if (session.payment_status !== 'paid') {
+
+    // Must be a genuinely completed one-time payment on OUR account.
+    if (session.mode !== 'payment' || session.payment_status !== 'paid') {
       return res.status(403).json({ error: 'Payment not confirmed. Please complete checkout first.' });
+    }
+    // Reject tiny/foreign sessions (a real audit payment is ~$99).
+    if (!session.amount_total || session.amount_total < 1000) {
+      return res.status(403).json({ error: 'Payment could not be validated for this product.' });
+    }
+    // Recency window: a session unlocks the report only for a limited time after
+    // purchase. This bounds how long a leaked/reused session_id stays usable.
+    const ageHours = (Date.now() / 1000 - (session.created || 0)) / 3600;
+    if (session.created && ageHours > 48) {
+      return res.status(403).json({ error: 'This checkout link has expired. Contact laurin85@gmail.com to re-send your report.' });
     }
     customerEmail = session.customer_details && session.customer_details.email;
   } catch (err) {

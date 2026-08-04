@@ -113,6 +113,32 @@ function decodeEntities(s) {
     .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)));
 }
 
+// ── SSRF guard ────────────────────────────────────────────────────
+// We fetch user-supplied URLs server-side, so block anything that points at
+// localhost, private/reserved ranges, or cloud metadata endpoints.
+function isSafePublicUrl(raw) {
+  let u;
+  try { u = new URL(raw); } catch { return false; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  const host = u.hostname.toLowerCase();
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) return false;
+  if (host === 'metadata.google.internal') return false;
+  // Literal IPv4 in private / loopback / link-local / reserved ranges
+  const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const [a, b] = [parseInt(m[1], 10), parseInt(m[2], 10)];
+    if (a === 10 || a === 127 || a === 0) return false;
+    if (a === 172 && b >= 16 && b <= 31) return false;
+    if (a === 192 && b === 168) return false;
+    if (a === 169 && b === 254) return false; // link-local incl. 169.254.169.254 metadata
+    if (a === 100 && b >= 64 && b <= 127) return false; // CGNAT
+    if (a >= 224) return false; // multicast/reserved
+  }
+  // IPv6 loopback / unique-local / link-local
+  if (host === '::1' || host === '[::1]' || host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) return false;
+  return true;
+}
+
 // Meta's crawler UA unlocks rich OG on IG/FB; a real browser UA works for sites
 // that block bots (Wikipedia, many CMSs). Try both and keep the first that yields OG.
 const USER_AGENTS = [
@@ -164,11 +190,14 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { url } = req.body || {};
-  if (!url || !/^https?:\/\//i.test(url.trim())) {
+  if (typeof url !== 'string' || url.length > 2000 || !/^https?:\/\//i.test(url.trim())) {
     return res.status(400).json({ error: 'Please paste a valid link starting with http.' });
   }
 
   const clean = url.trim();
+  if (!isSafePublicUrl(clean)) {
+    return res.status(400).json({ error: 'That link points to a private or unsupported address.' });
+  }
   const platform = detectPlatform(clean);
   const platformLabel = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok', x: 'X', web: 'the page' }[platform];
 

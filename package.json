@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "node test/extract.test.js"
+    "test": "node test/security.test.js && node test/extract.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.53.0",

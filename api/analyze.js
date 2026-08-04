@@ -8,8 +8,11 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { strategy } = req.body || {};
-  if (!strategy || strategy.trim().length < 15) {
+  if (typeof strategy !== 'string' || strategy.trim().length < 15) {
     return res.status(400).json({ error: 'Strategy description too short (min 15 chars)' });
+  }
+  if (strategy.length > 20000) {
+    return res.status(413).json({ error: 'Strategy text is too long.' });
   }
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });

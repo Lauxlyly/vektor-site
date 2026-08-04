@@ -46,6 +46,10 @@ body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .section{background:#0a0a16;border:1px solid rgba(124,58,237,.2);border-radius:12px;overflow:hidden;margin-bottom:20px;}
 .section-header{padding:14px 20px;background:rgba(124,58,237,.06);border-bottom:1px solid rgba(124,58,237,.1);}
 .section-title{font-family:monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#7c3aed;}
+.report-intro{background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.18);border-radius:12px;padding:16px 20px;margin-bottom:20px;}
+.ri-title{font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#7c3aed;margin-bottom:7px;}
+.ri-body{font-size:13px;color:#cbd5e1;line-height:1.65;}
+.ri-body b{color:#e2e8f0;}
 .section-sub{font-size:11.5px;color:#64748b;line-height:1.55;margin-top:7px;}
 .label-legend{display:flex;flex-direction:column;gap:4px;padding:12px 20px;border-top:1px solid #0c0c1a;font-family:monospace;font-size:10px;color:#475569;line-height:1.5;}
 .label-legend b{font-weight:700;}
@@ -152,17 +156,23 @@ body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
       <div class="vb-summary" id="vbSummary"></div>
     </div>
 
+    <!-- What you're reading -->
+    <div class="report-intro" id="reportIntro">
+      <div class="ri-title">What this report is</div>
+      <div class="ri-body">You submitted a <b>description</b>, so this is an expert <b>qualitative red-team</b>: your verdict and reasoning above are based on the strategy's design itself. Each check below shows what we assessed and exactly which data would let us <b>compute</b> the statistical version. That distinction is the point — we never label an opinion as a completed test.</div>
+    </div>
+
     <!-- 6 failure-mode checks -->
     <div class="section">
       <div class="section-header">
         <div class="section-title">Falsification Review — 6 Failure-Mode Checks</div>
-        <div class="section-sub">Qualitative red-team unless a formal ruleset and trade data are supplied. These checks share a common root cause and are not statistically independent. We never label an opinion as a completed test — see result labels below.</div>
+        <div class="section-sub">A structured red-team of the ways this strategy could be fooling you. Checks share a common root cause and are not statistically independent. PASS / FAIL / MARGINAL appear only when a check ran on real data.</div>
       </div>
       <div class="section-body" id="testsBody"></div>
       <div class="label-legend" id="labelLegend">
         <span><b style="color:#4ade80">PASS</b>/<b style="color:#ef4444">FAIL</b>/<b style="color:#fbbf24">MARGINAL</b> — check ran on real data</span>
-        <span><b style="color:#94a3b8">NOT TESTED</b> — required data/rules absent, check could not run</span>
-        <span><b style="color:#94a3b8">INSUFFICIENT EVIDENCE</b> — inputs too sparse for a reliable result</span>
+        <span><b style="color:#94a3b8">NEEDS DATA</b> — assessed qualitatively; needs a ruleset/trade data to compute</span>
+        <span><b style="color:#94a3b8">LIMITED DATA</b> — some inputs given, too sparse for a reliable result</span>
       </div>
     </div>
 
@@ -223,6 +233,17 @@ function show(id) {
   });
 }
 
+// Escape untrusted (LLM-generated) text before putting it in innerHTML
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+// Only allow a #hex colour; otherwise fall back to neutral grey
+function safeColor(c) {
+  return /^#[0-9a-fA-F]{3,8}$/.test(String(c || '')) ? c : '#94a3b8';
+}
+
 // Map a check result to a visual score bar (width % + color)
 function barFor(result, color) {
   const r = (result || '').toUpperCase();
@@ -245,7 +266,7 @@ let _auditId = '';
 
 function renderReport(report) {
   _report = report;
-  const color = report.verdict_color || '#fbbf24';
+  const color = safeColor(report.verdict_color);
 
   _auditId = makeAuditId();
   document.getElementById('auditId').textContent = 'AUDIT #' + _auditId;
@@ -264,14 +285,14 @@ function renderReport(report) {
   (report.tests || []).forEach((t, i) => {
     const row = document.createElement('div');
     row.className = 'test-row';
-    const rc = t.result_color || '#94a3b8';
+    const rc = safeColor(t.result_color);
     const bar = barFor(t.result, rc);
     row.innerHTML = `
       <div>
-        <div class="test-name">${t.name}</div>
-        <div class="test-finding">${t.finding}</div>
+        <div class="test-name">${esc(t.name)}</div>
+        <div class="test-finding">${esc(t.finding)}</div>
       </div>
-      <div class="test-badge" style="background:${rc}18;border:1px solid ${rc}44;color:${rc};">${t.result}</div>
+      <div class="test-badge" style="background:${rc}18;border:1px solid ${rc}44;color:${rc};">${esc(t.result)}</div>
       <div class="test-bar-track">
         <div class="test-bar-fill" style="width:${bar.pct}%;background:${bar.color};animation-delay:${i*0.08}s;"></div>
       </div>`;
@@ -412,7 +433,7 @@ function buildPdf(jsPDFCtor) {
   // ── 6 failure-mode checks ──
   sectionLabel('Falsification Review — 6 Failure-Mode Checks');
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(GREY[0], GREY[1], GREY[2]);
-  const subLines = doc.splitTextToSize('Qualitative red-team unless a formal ruleset and trade data are supplied. Checks share a common root cause and are not statistically independent. PASS/FAIL/MARGINAL are used only when a check ran on real data; otherwise NOT TESTED.', CW);
+  const subLines = doc.splitTextToSize('You submitted a description, so this is an expert qualitative red-team. Checks share a common root cause and are not statistically independent. PASS/FAIL/MARGINAL appear only when a check ran on real data; NEEDS DATA means it needs a ruleset/trade data to compute.', CW);
   for (const ln of subLines) { need(4); doc.text(ln, M, y); y += 4; }
   y += 3;
   (r.tests || []).forEach((t) => {
