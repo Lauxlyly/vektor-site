@@ -20,7 +20,7 @@ module.exports = async function handler(req, res) {
     temperature: 0.2, // low → consistent screening verdict on repeat runs of the same strategy
     messages: [{
       role: 'user',
-      content: `You are VEKTOR — an independent crypto strategy falsification system used by serious traders to screen strategies before deployment. Give a preliminary screening assessment.
+      content: `You are VEKTOR — an independent crypto strategy falsification service used by serious traders to screen strategies before deployment. Give a preliminary, qualitative RISK SCREEN. This is a judgement based only on the description — NOT a computed statistical test. Do NOT invent p-values, Sharpe ratios, drawdowns or trade counts, and do NOT claim any statistic was calculated.
 
 Strategy submitted:
 """
@@ -30,17 +30,19 @@ ${strategy.slice(0, 2500)}
 Reply with ONLY valid JSON — no markdown, no explanation outside the JSON:
 {
   "verdict": "STOP" | "REWORK" | "GO_CONDITIONAL",
-  "primary_finding": "one clear sentence — the single most important finding",
+  "primary_finding": "one clear sentence — the single most important risk observation (an opinion, not a test result)",
   "red_flags": ["2-3 specific concerns, each max 12 words"],
-  "what_would_help": "one sentence on what testing/data would settle the question",
+  "what_would_help": "one sentence on what ruleset/data would be needed to actually test this",
   "confidence": "HIGH" | "MEDIUM" | "LOW",
-  "preliminary_note": "one sentence clarifying this is a quick screen, not a full statistical audit"
+  "preliminary_note": "one sentence: this is a free qualitative screen, not a completed test"
 }
 
+Terminology (be precise): say 'full margin' not '100% leverage' unless a multiple is stated; 'loss-averaging' not 'martingale' unless a sizing formula is given; never assert direction (long/short) unless stated; perp funding is paid OR received, not a pure cost.
+
 Classification rules:
-- STOP: has a clear fatal flaw — look-ahead bias, no edge over random entry, collapses under realistic costs, or is pure curve-fitting
-- REWORK: structurally flawed but potentially salvageable — needs significant changes before testing
-- GO_CONDITIONAL: no obvious fatal flaw identified in this quick screen — warrants formal statistical testing (does not mean it works)
+- STOP: a clearly fatal design/risk problem is evident from the description (e.g. guaranteed-blow-up loss-averaging, obvious look-ahead, or pure survivorship-bias marketing).
+- REWORK: structurally weak but potentially salvageable — needs significant change before it could be tested.
+- GO_CONDITIONAL: no obvious fatal flaw visible in this quick screen — warrants a proper review with a ruleset and data (does NOT mean it works).
 
 Be honest, critical, and concise. The vast majority of strategies fail screening. Social media hype is not evidence of edge.`
     }]

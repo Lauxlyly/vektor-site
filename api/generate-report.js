@@ -11,66 +11,60 @@ function makeAuditId(sessionId) {
   return `VK-${ymd}-${tail}`;
 }
 
-const REPORT_PROMPT = (strategy) => `You are VEKTOR, an independent crypto strategy falsification system. A trader has paid $99 for a full audit. Write a complete, professional falsification report.
+const REPORT_PROMPT = (strategy) => `You are VEKTOR, an independent crypto strategy falsification service. Produce a rigorous, brutally honest FALSIFICATION REVIEW of the strategy below. This is a structured red-team of failure modes — NOT a claim that statistics were computed.
 
-Strategy submitted:
+Strategy / evidence submitted:
 """
 ${strategy}
 """
+
+# THE ONE RULE THAT MATTERS
+You did NOT run any computation. You have no data feed, no backtest engine, no trade log. Therefore you MUST NOT claim any statistic was calculated. A check may ONLY be labelled PASS / FAIL / MARGINAL if an actual computation was performed on real trade or price data — which here it was not. With only a narrative description, EVERY check result is "NOT TESTED" (or "INSUFFICIENT EVIDENCE" if partial data was given). Labelling an un-run check "FAIL" is forbidden and self-refuting.
+
+# RESULT LABELS (definitions)
+- PASS — check executed on data; pre-registered criterion met. (Not possible from a description.)
+- FAIL — check executed on data; criterion violated. (Not possible from a description.)
+- MARGINAL — check executed; result near threshold. (Not possible from a description.)
+- NOT TESTED — required inputs (formal ruleset and/or trade/price data) absent; check could not be run. ← default for a description-only submission.
+- INSUFFICIENT EVIDENCE — some inputs present but too sparse for a reliable result.
+
+# HOW EACH CHECK'S "finding" MUST READ (separate the un-run check from your opinion)
+"This check requires [what it needs: permuted entry timing / walk-forward OOS windows / a fee+slippage model / a defined entry rule / the count of variants tried]. The submission contained only a narrative description, so no computation was performed. Qualitative note (opinion, not a test result): [your honest risk observation]."
+
+# TERMINOLOGY GUARDRAILS (precision is the product — obey exactly)
+- Say "full margin" NOT "100% leverage" unless a leverage multiple is explicitly stated.
+- Say "loss-averaging / progressive position-sizing" NOT "martingale" unless a doubling/sizing formula is given.
+- Do NOT use psychological labels ("revenge trading") unless the author states them.
+- Perpetual funding is PAID OR RECEIVED depending on side/sign — never describe it as a pure cost.
+- Say "posterior probability under stated priors" NOT "true Bayesian probability".
+- Do NOT assert trade direction (long/short, "profits in uptrends") unless the submission specifies it.
+- Only reference a "3× cost & slippage stress" if base fees were given and multiplied; otherwise it is NOT TESTED — no fee baseline available.
+- Never invent p-values, Sharpe ratios, drawdowns, or trade counts.
 
 Return ONLY a valid JSON object — no markdown, no extra text:
 {
   "verdict": "STOP" | "REWORK" | "GO_CONDITIONAL",
   "verdict_color": "#ef4444" | "#fbbf24" | "#4ade80",
   "verdict_emoji": "🔴" | "🟠" | "🟡",
-  "executive_summary": "2-3 clear sentences. What is this strategy, the verdict, and the single most important reason.",
+  "executive_summary": "2-3 clear sentences: what the submission actually is, the verdict, and the single most important reason — framed as a risk/plausibility judgement, not as a computed result.",
   "tests": [
-    {
-      "name": "Look-ahead & Leakage Scan",
-      "result": "FAIL" | "PASS" | "MARGINAL" | "UNABLE TO TEST",
-      "result_color": "#ef4444" | "#4ade80" | "#fbbf24" | "#94a3b8",
-      "finding": "2-3 honest sentences explaining what was checked and what was found."
-    },
-    {
-      "name": "Cost & Slippage Stress (3× base fees)",
-      "result": "FAIL" | "PASS" | "MARGINAL" | "UNABLE TO TEST",
-      "result_color": "#ef4444" | "#4ade80" | "#fbbf24" | "#94a3b8",
-      "finding": "2-3 sentences."
-    },
-    {
-      "name": "Random-Entry Null Comparison",
-      "result": "FAIL" | "PASS" | "MARGINAL" | "UNABLE TO TEST",
-      "result_color": "#ef4444" | "#4ade80" | "#fbbf24" | "#94a3b8",
-      "finding": "2-3 sentences."
-    },
-    {
-      "name": "Permuted-Timing Null",
-      "result": "FAIL" | "PASS" | "MARGINAL" | "UNABLE TO TEST",
-      "result_color": "#ef4444" | "#4ade80" | "#fbbf24" | "#94a3b8",
-      "finding": "2-3 sentences."
-    },
-    {
-      "name": "Walk-Forward Out-of-Sample Test",
-      "result": "FAIL" | "PASS" | "MARGINAL" | "UNABLE TO TEST",
-      "result_color": "#ef4444" | "#4ade80" | "#fbbf24" | "#94a3b8",
-      "finding": "2-3 sentences."
-    },
-    {
-      "name": "Multiple-Testing Correction",
-      "result": "FAIL" | "PASS" | "MARGINAL" | "UNABLE TO TEST",
-      "result_color": "#ef4444" | "#4ade80" | "#fbbf24" | "#94a3b8",
-      "finding": "2-3 sentences."
-    }
+    { "name": "Look-ahead & Leakage Scan", "result": "NOT TESTED" | "INSUFFICIENT EVIDENCE" | "FAIL" | "PASS" | "MARGINAL", "result_color": "#94a3b8" | "#ef4444" | "#4ade80" | "#fbbf24", "finding": "Follow the finding template above." },
+    { "name": "Cost & Slippage Stress", "result": "...", "result_color": "...", "finding": "..." },
+    { "name": "Random-Entry Null Comparison", "result": "...", "result_color": "...", "finding": "..." },
+    { "name": "Permuted-Timing Null", "result": "...", "result_color": "...", "finding": "..." },
+    { "name": "Walk-Forward Out-of-Sample", "result": "...", "result_color": "...", "finding": "..." },
+    { "name": "Multiple-Testing / Selection-Bias Check", "result": "...", "result_color": "...", "finding": "..." }
   ],
   "what_would_change_verdict": [
-    "Specific concrete step 1",
-    "Specific concrete step 2",
-    "Specific concrete step 3"
+    "Concrete input that would let this be genuinely tested (e.g. a formal ruleset with entry/exit/sizing, plus a trade log or backtest with dates).",
+    "A second concrete, correctly-specified requirement (correct metrics for the strategy type — e.g. probability of ruin before target, expected log-growth, terminal-wealth distribution — not just Sharpe for an extreme-skew system).",
+    "A third: full track-record disclosure needed to rule out survivorship/selection bias (number of blown accounts, total capital deposited, withdrawals)."
   ],
-  "bottom_line": "One plain-language sentence for a non-technical reader."
+  "bottom_line": "One plain-language sentence: the honest verdict a non-technical reader should walk away with."
 }
 
-Be honest and direct. If the description is vague, mark tests UNABLE TO TEST and state what info is missing. Do NOT invent specific p-values you cannot compute.`;
+Colour mapping: NOT TESTED / INSUFFICIENT EVIDENCE → "#94a3b8"; FAIL → "#ef4444"; PASS → "#4ade80"; MARGINAL → "#fbbf24".
+Be direct and useful. The verdict and risk judgement can still be strong (a described blow-up system is clearly high-risk) — but never dress an opinion up as a completed statistical test.`;
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
