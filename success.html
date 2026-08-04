@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Your VEKTOR Audit — Full Report</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;padding:32px 20px;}
@@ -316,86 +316,161 @@ function startWithFallback() {
   fetchReport(s);
 }
 
-// Build a print-optimised (light) report document for the PDF
-function buildPrintable() {
-  const r = _report;
-  const color = r.verdict_color || '#fbbf24';
-  const testRows = (r.tests || []).map(t => `
-    <tr>
-      <td style="padding:11px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#111827;font-weight:600;vertical-align:top;">${t.name}</td>
-      <td style="padding:11px 14px;border-bottom:1px solid #e5e7eb;vertical-align:top;">
-        <span style="background:${t.result_color}22;color:${t.result_color};font-family:monospace;font-size:10px;font-weight:700;letter-spacing:1px;padding:3px 8px;border-radius:4px;white-space:nowrap;">${t.result}</span>
-      </td>
-      <td style="padding:11px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#4b5563;line-height:1.6;">${t.finding}</td>
-    </tr>`).join('');
-  const changeItems = (r.what_would_change_verdict || []).map(i => `<li style="margin-bottom:7px;color:#374151;font-size:12px;line-height:1.6;">${i}</li>`).join('');
-  const el = document.createElement('div');
-  el.style.cssText = 'background:#fff;color:#111827;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;padding:36px 40px;width:720px;';
-  el.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #7c3aed;padding-bottom:14px;margin-bottom:26px;">
-      <div>
-        <div style="font-family:monospace;font-size:15px;font-weight:800;letter-spacing:4px;color:#7c3aed;">VEKTOR</div>
-        <div style="font-family:monospace;font-size:10px;color:#9ca3af;margin-top:3px;">Independent Strategy Falsification</div>
-      </div>
-      <div style="text-align:right;font-family:monospace;font-size:10px;color:#9ca3af;">
-        <div style="color:#7c3aed;font-weight:700;">AUDIT #${_auditId}</div>
-        <div>${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
-      </div>
-    </div>
-    <div style="background:${color}12;border:2px solid ${color}55;border-radius:12px;padding:22px;text-align:center;margin-bottom:24px;">
-      <div style="font-size:34px;margin-bottom:6px;">${r.verdict_emoji}</div>
-      <div style="font-family:monospace;font-size:24px;font-weight:900;letter-spacing:4px;color:${color};margin-bottom:10px;">${r.verdict.replace(/_/g,' ')}</div>
-      <div style="font-size:13px;color:#374151;line-height:1.7;">${r.executive_summary}</div>
-    </div>
-    ${_strategy ? `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:22px;"><div style="font-family:monospace;font-size:9px;letter-spacing:2px;color:#9ca3af;margin-bottom:5px;">STRATEGY SUBMITTED</div><div style="font-size:12px;color:#6b7280;line-height:1.6;">${_strategy}</div></div>` : ''}
-    <div style="font-family:monospace;font-size:11px;letter-spacing:2px;color:#7c3aed;margin-bottom:8px;">6 INDEPENDENT TESTS</div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">${testRows}</table>
-    <div style="font-family:monospace;font-size:11px;letter-spacing:2px;color:#7c3aed;margin-bottom:8px;">WHAT WOULD CHANGE THIS VERDICT</div>
-    <ul style="padding-left:20px;margin:0 0 24px;">${changeItems}</ul>
-    <div style="background:#f5f3ff;border-left:3px solid #7c3aed;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:28px;">
-      <div style="font-family:monospace;font-size:9px;letter-spacing:2px;color:#7c3aed;margin-bottom:5px;">BOTTOM LINE</div>
-      <div style="font-size:14px;color:#111827;font-weight:600;line-height:1.6;">${r.bottom_line}</div>
-    </div>
-    <div style="font-family:monospace;font-size:10px;color:#9ca3af;text-align:center;border-top:1px solid #e5e7eb;padding-top:16px;">VEKTOR · independent strategy falsification · pre-registered methodology · not investment advice</div>`;
-  return el;
-}
-
-// Download report as a real PDF (client-side, no server)
+// Download report as a real, text-based PDF built natively with jsPDF.
+// (Not an html2canvas screenshot — so every section renders and paginates reliably,
+//  the text stays selectable, and the file stays small.)
 function downloadReport() {
   if (!_report) return;
   const btn = document.getElementById('dlBtn');
   const orig = btn.textContent;
 
-  // If the PDF library failed to load (e.g. offline / blocked CDN), fall back to print
-  if (typeof window.html2pdf !== 'function') {
-    window.print();
-    return;
-  }
+  const jsPDFCtor = window.jspdf && window.jspdf.jsPDF;
+  if (!jsPDFCtor) { window.print(); return; } // CDN blocked → browser print fallback
 
   btn.disabled = true; btn.textContent = 'Generating PDF…';
+  try {
+    buildPdf(jsPDFCtor).save(`VEKTOR-audit-${_auditId}.pdf`);
+  } catch (e) {
+    alert('PDF export failed. Try again, or use your browser’s Print → Save as PDF.');
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
 
-  const el = buildPrintable();
-  const holder = document.createElement('div');
-  holder.style.cssText = 'position:fixed;left:-9999px;top:0;';
-  holder.appendChild(el);
-  document.body.appendChild(holder);
+function hexToRgb(hex) {
+  const h = (hex || '#7c3aed').replace('#', '');
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+function tint(rgb, amt) { return rgb.map(c => Math.round(c + (255 - c) * amt)); }
 
-  const opt = {
-    margin: [10, 10, 10, 10],
-    filename: `VEKTOR-audit-${_auditId}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['avoid-all', 'css'] },
+function buildPdf(jsPDFCtor) {
+  const r = _report;
+  const doc = new jsPDFCtor({ unit: 'mm', format: 'a4' });
+  const PW = 210, PH = 297, M = 16, CW = PW - M * 2;
+  const PURPLE = [124, 58, 237], INK = [17, 24, 39], GREY = [107, 114, 128], LINE = [229, 231, 235];
+  const vc = hexToRgb(r.verdict_color);
+  let y = M;
+
+  const need = (h) => { if (y + h > PH - M) { doc.addPage(); y = M; } };
+  const para = (text, size, rgb, lh, maxW) => {
+    doc.setFontSize(size); doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+    const lines = doc.splitTextToSize(text || '', maxW || CW);
+    for (const ln of lines) { need(lh); doc.text(ln, M, y); y += lh; }
+  };
+  const sectionLabel = (t) => {
+    need(9); doc.setFont('courier', 'bold'); doc.setFontSize(9);
+    doc.setTextColor(PURPLE[0], PURPLE[1], PURPLE[2]);
+    doc.text(t.toUpperCase(), M, y); y += 6; doc.setFont('helvetica', 'normal');
   };
 
-  window.html2pdf().set(opt).from(el).save()
-    .then(() => { document.body.removeChild(holder); btn.disabled = false; btn.textContent = orig; })
-    .catch(() => {
-      document.body.removeChild(holder);
-      btn.disabled = false; btn.textContent = orig;
-      alert('PDF export failed. Try again, or use your browser’s Print → Save as PDF.');
-    });
+  // ── Header ──
+  doc.setFont('courier', 'bold'); doc.setFontSize(15);
+  doc.setTextColor(PURPLE[0], PURPLE[1], PURPLE[2]);
+  doc.text('VEKTOR', M, y + 3);
+  doc.setFont('courier', 'normal'); doc.setFontSize(8);
+  doc.setTextColor(GREY[0], GREY[1], GREY[2]);
+  doc.text('AUDIT #' + _auditId, PW - M, y, { align: 'right' });
+  doc.text(new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), PW - M, y + 4, { align: 'right' });
+  doc.text('Independent Strategy Falsification', M, y + 8);
+  y += 12;
+  doc.setDrawColor(PURPLE[0], PURPLE[1], PURPLE[2]); doc.setLineWidth(0.6);
+  doc.line(M, y, PW - M, y); y += 9;
+
+  // ── Verdict banner ──
+  // NB: splitTextToSize measures at the CURRENT font size, so set it before every split.
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
+  const summaryLines = doc.splitTextToSize(r.executive_summary || '', CW - 24);
+  const bannerH = 26 + summaryLines.length * 5;
+  need(bannerH);
+  const bg = tint(vc, 0.88);
+  doc.setFillColor(bg[0], bg[1], bg[2]);
+  doc.setDrawColor(vc[0], vc[1], vc[2]); doc.setLineWidth(0.5);
+  doc.roundedRect(M, y, CW, bannerH, 3, 3, 'FD');
+  // verdict dot + label centered
+  doc.setFillColor(vc[0], vc[1], vc[2]);
+  doc.circle(PW / 2, y + 9, 2.6, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(22);
+  doc.setTextColor(vc[0], vc[1], vc[2]);
+  doc.text(r.verdict.replace(/_/g, ' '), PW / 2, y + 19, { align: 'center' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(55, 65, 81);
+  let sy = y + 26;
+  for (const ln of summaryLines) { doc.text(ln, PW / 2, sy, { align: 'center' }); sy += 5; }
+  y += bannerH + 10;
+
+  // ── 6 tests ──
+  sectionLabel('6 Independent Statistical Tests');
+  (r.tests || []).forEach((t) => {
+    const rc = hexToRgb(t.result_color);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+    const findingLines = doc.splitTextToSize(t.finding || '', CW);
+    const blockH = 6 + findingLines.length * 4.6 + 5;
+    need(blockH);
+    // name (left, bold) + result (right, colored)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(INK[0], INK[1], INK[2]);
+    doc.text(t.name, M, y);
+    doc.setFont('courier', 'bold'); doc.setFontSize(9); doc.setTextColor(rc[0], rc[1], rc[2]);
+    doc.text(t.result, PW - M, y, { align: 'right' });
+    y += 5;
+    // finding
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(GREY[0], GREY[1], GREY[2]);
+    for (const ln of findingLines) { doc.text(ln, M, y); y += 4.6; }
+    y += 1.5;
+    // colored score bar
+    const pct = { PASS: 0.92, MARGINAL: 0.5, FAIL: 0.08 }[(t.result || '').toUpperCase()] ?? 0.3;
+    doc.setFillColor(LINE[0], LINE[1], LINE[2]); doc.rect(M, y, CW, 1.2, 'F');
+    doc.setFillColor(rc[0], rc[1], rc[2]); doc.rect(M, y, Math.max(CW * pct, 2), 1.2, 'F');
+    y += 6;
+  });
+  y += 2;
+
+  // ── What would change verdict ──
+  sectionLabel('What Would Change This Verdict');
+  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+  (r.what_would_change_verdict || []).forEach((item) => {
+    const lines = doc.splitTextToSize(item || '', CW - 6);
+    need(lines.length * 4.8 + 4);
+    doc.setTextColor(PURPLE[0], PURPLE[1], PURPLE[2]); doc.text('•', M, y);
+    doc.setTextColor(55, 65, 81);
+    for (let i = 0; i < lines.length; i++) { doc.text(lines[i], M + 5, y); y += 4.8; }
+    y += 2;
+  });
+  y += 3;
+
+  // ── Bottom line ──
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+  const blLines = doc.splitTextToSize(r.bottom_line || '', CW - 14);
+  const blH = 10 + blLines.length * 5;
+  need(blH);
+  const blbg = tint(PURPLE, 0.92);
+  doc.setFillColor(blbg[0], blbg[1], blbg[2]);
+  doc.roundedRect(M, y, CW, blH, 2, 2, 'F');
+  doc.setFillColor(PURPLE[0], PURPLE[1], PURPLE[2]); doc.rect(M, y, 1.5, blH, 'F');
+  doc.setFont('courier', 'bold'); doc.setFontSize(8); doc.setTextColor(PURPLE[0], PURPLE[1], PURPLE[2]);
+  doc.text('BOTTOM LINE', M + 5, y + 6);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(INK[0], INK[1], INK[2]);
+  let by = y + 12;
+  for (const ln of blLines) { doc.text(ln, M + 5, by); by += 5; }
+  y += blH + 10;
+
+  // ── Strategy submitted (appendix, last) ──
+  if (_strategy) {
+    sectionLabel('Strategy Submitted');
+    para(_strategy, 8.5, GREY, 4.2, CW);
+    y += 4;
+  }
+
+  // ── Footer on every page ──
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    doc.setDrawColor(LINE[0], LINE[1], LINE[2]); doc.setLineWidth(0.3);
+    doc.line(M, PH - 12, PW - M, PH - 12);
+    doc.setFont('courier', 'normal'); doc.setFontSize(7.5); doc.setTextColor(156, 163, 175);
+    doc.text('VEKTOR · independent strategy falsification · not investment advice', M, PH - 8);
+    doc.text(`${p} / ${pages}`, PW - M, PH - 8, { align: 'right' });
+  }
+  return doc;
 }
 
 function getShareText() {
