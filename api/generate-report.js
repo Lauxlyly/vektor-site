@@ -2,6 +2,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const Stripe = require('stripe');
 const { Resend } = require('resend');
 const { buildEmail } = require('../lib/report-email');
+const { rateLimit } = require('../lib/ratelimit');
 
 function makeAuditId(sessionId) {
   const d = new Date();
@@ -72,6 +73,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
+  if (!(await rateLimit(req, res, { name: 'report', max: 12, windowSec: 60 }))) return;
 
   const { session_id, strategy } = req.body || {};
 

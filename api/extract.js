@@ -6,6 +6,7 @@
 // Degrades gracefully; if nothing is readable, tells the user to paste manually.
 
 const { YoutubeTranscript } = require('youtube-transcript');
+const { rateLimit } = require('../lib/ratelimit');
 
 const MAX_TEXT = 6000;
 
@@ -188,6 +189,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
+  if (!(await rateLimit(req, res, { name: 'extract', max: 6, windowSec: 60 }))) return;
 
   const { url } = req.body || {};
   if (typeof url !== 'string' || url.length > 2000 || !/^https?:\/\//i.test(url.trim())) {
