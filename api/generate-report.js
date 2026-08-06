@@ -148,17 +148,21 @@ module.exports = async function handler(req, res) {
       const html = buildEmail(cleanStrategy, report, auditId);
       const resend = new Resend(process.env.RESEND_API_KEY);
       const verdict = report.verdict.replace(/_/g, ' ');
+      // EMAIL_FROM must be a verified-domain sender for real customers to receive mail
+      // (Resend's shared onboarding@resend.dev only delivers to your own account).
+      const from = process.env.EMAIL_FROM || 'VEKTOR Audit <onboarding@resend.dev>';
+      const owner = process.env.OWNER_EMAIL || 'laurin85@gmail.com';
       if (customerEmail) {
         await resend.emails.send({
-          from: 'VEKTOR Audit <onboarding@resend.dev>',
+          from,
           to: customerEmail,
           subject: `${report.verdict_emoji} Your VEKTOR Strategy Audit — ${verdict} (#${auditId})`,
           html,
         });
       }
       await resend.emails.send({
-        from: 'VEKTOR System <onboarding@resend.dev>',
-        to: 'laurin85@gmail.com',
+        from,
+        to: owner,
         subject: `[VEKTOR] Audit #${auditId} — ${report.verdict} — ${customerEmail || 'unknown email'}`,
         html,
       });

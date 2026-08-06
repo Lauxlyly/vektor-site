@@ -76,8 +76,8 @@ module.exports = async function handler(req, res) {
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
     await resend.emails.send({
-      from: 'VEKTOR System <onboarding@resend.dev>',
-      to: 'laurin85@gmail.com',
+      from: process.env.EMAIL_FROM || 'VEKTOR System <onboarding@resend.dev>',
+      to: process.env.OWNER_EMAIL || 'laurin85@gmail.com',
       subject: `[VEKTOR] 💰 Payment ${amount} from ${email}`,
       html,
     });
