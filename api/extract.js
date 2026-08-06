@@ -20,7 +20,7 @@ async function fetchSupadataTranscript(url) {
   // Abort a slow transcription before the function's hard timeout so we can
   // still fall back to the caption instead of returning a raw 504.
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 45000);
+  const timer = setTimeout(() => ctrl.abort(), 40000);
   try {
     const resp = await fetch(endpoint, { headers: { 'x-api-key': key }, signal: ctrl.signal });
     if (resp.status === 202) {
@@ -165,6 +165,8 @@ function parseOG(html) {
 async function fetchOG(url) {
   let best = { title: '', desc: '' };
   for (const ua of USER_AGENTS) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000); // bound each hop so total stays < function limit
     try {
       const resp = await fetch(url, {
         headers: {
@@ -172,13 +174,15 @@ async function fetchOG(url) {
           'Accept': 'text/html,application/xhtml+xml',
           'Accept-Language': 'en-US,en;q=0.9',
         },
+        signal: ctrl.signal,
       });
       if (!resp.ok) continue;
       const html = await resp.text();
       const og = parseOG(html);
       if (og.title || og.desc) return og; // got something usable — stop
       if (!best.title && !best.desc) best = og;
-    } catch (e) { /* try next UA */ }
+    } catch (e) { /* timeout or error — try next UA */ }
+    finally { clearTimeout(timer); }
   }
   return best;
 }
