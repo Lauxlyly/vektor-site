@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const FILES = ['index.html', 'sample-report.html', 'success.html'];
+const FILES = ['index.html', 'sample-report.html', 'success.html', 'terms.html', 'privacy.html'];
 const root = path.join(__dirname, '..');
 const fails = [];
 
@@ -18,11 +18,13 @@ for (const f of FILES) {
   const html = read(f);
   if (!html) continue;
 
-  // 1) Tight unitless line-height (<1.05) — overlaps descenders when headings wrap.
+  // 1) Tight unitless line-height (<1.15) — a heavy display heading's descenders (g, y, p)
+  //    overlap the next line when it wraps. 1.12 shipped once and still overlapped, so the
+  //    floor is 1.15. (line-height:0 is allowed — it's only used to reset icon-only boxes.)
   let m; const lh = /line-height:\s*(\d*\.?\d+)\s*[;}]/g;
   while ((m = lh.exec(html))) {
     const v = parseFloat(m[1]);
-    if (v > 0 && v < 1.05) fails.push(`${f}: line-height:${m[1]} (<1.05 — wrapping headings overlap; use ≥1.1)`);
+    if (v > 0 && v < 1.15) fails.push(`${f}: line-height:${m[1]} (<1.15 — headings overlap descenders when they wrap; use ≥1.2 on display headings)`);
   }
 
   // 2) Broken internal anchors: href="#foo" with no matching id="foo".

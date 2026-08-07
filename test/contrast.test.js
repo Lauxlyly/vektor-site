@@ -6,7 +6,7 @@ const path = require('path');
 
 const BG = '#050508';           // body background
 const MIN = 4.5;                // WCAG AA, normal text
-const FILES = ['index.html', 'sample-report.html', 'success.html'];
+const FILES = ['index.html', 'sample-report.html', 'success.html', 'terms.html', 'privacy.html'];
 
 function lum(hex) {
   hex = hex.replace('#', '');
@@ -30,7 +30,8 @@ for (const f of FILES) {
   const fp = path.join(root, f);
   if (!fs.existsSync(fp)) continue;
   const html = fs.readFileSync(fp, 'utf8');
-  const re = /color:\s*(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})\b/g;
+  // Only the `color` property — not background-color / accent-color / border-color etc.
+  const re = /(?<![-\w])color:\s*(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})\b/g;
   const seen = new Set();
   let m;
   while ((m = re.exec(html))) {
