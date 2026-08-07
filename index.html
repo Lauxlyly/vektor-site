@@ -84,7 +84,9 @@ section{position:relative;z-index:1;}
 .step:hover{transform:translateY(-6px);border-color:rgba(124,58,237,.5);}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
 .step-num{font-size:44px;font-weight:900;color:rgba(109,40,217,.18);font-family:monospace;margin-bottom:6px;}
-.step-icon{font-size:26px;margin-bottom:10px;display:block;}
+.step-icon{margin-bottom:13px;display:block;line-height:0;}
+.step-icon svg{width:34px;height:34px;fill:none;stroke:url(#vg);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 10px rgba(124,58,237,.45));transition:transform .3s ease;}
+.step:hover .step-icon svg{transform:scale(1.14) rotate(-3deg);}
 .step-title{font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:6px;}
 .step-desc{font-size:13px;color:#94a3b8;line-height:1.7;}
 
@@ -360,22 +362,23 @@ footer a{color:#94a3b8;}
     <h2 class="st">Three steps. One honest verdict.</h2>
     <p class="ss">Pre-registered method. No result-tuning. We don't sell signals and we don't take a cut of your trades — so we have no reason to flatter your strategy.</p>
   </div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="vg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs></svg>
   <div class="steps">
     <div class="step" style="--d:7s;--dl:0s">
       <div class="step-num">01</div>
-      <span class="step-icon">📋</span>
+      <span class="step-icon"><svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/><path d="M9 13h6"/><path d="M9 17h4"/></svg></span>
       <div class="step-title">Describe the strategy</div>
       <div class="step-desc">Type the entry rule, exit rule, timeframe and coin/pair. Saw it in a video and only know the gist? Paste that. No code, no spreadsheets.</div>
     </div>
     <div class="step" style="--d:8s;--dl:.4s">
       <div class="step-num">02</div>
-      <span class="step-icon">⚗️</span>
+      <span class="step-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="m8 11 2 2 4-4"/></svg></span>
       <div class="step-title">We run the quick screen</div>
       <div class="step-desc">Look-ahead bias · random-luck comparison · trading-cost stress · overfitting risk · structural plausibility. Instant AI verdict — free.</div>
     </div>
     <div class="step" style="--d:6s;--dl:.8s">
       <div class="step-num">03</div>
-      <span class="step-icon">🔬</span>
+      <span class="step-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M8 17v-4"/><path d="M13 17V9"/><path d="M18 17V6"/></svg></span>
       <div class="step-title">Full statistical audit ($99)</div>
       <div class="step-desc">Want the deep version? A full 6-check red-team — plus real walk-forward, cost-stress and multiple-testing statistics when you supply a ruleset and trade data. Full PDF report, on-page in seconds and emailed.</div>
     </div>
