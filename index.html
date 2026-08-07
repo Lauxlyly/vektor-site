@@ -87,6 +87,9 @@ section{position:relative;z-index:1;}
 .step-icon{margin-bottom:13px;display:block;line-height:0;}
 .step-icon svg{width:34px;height:34px;fill:none;stroke:url(#vg);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 10px rgba(124,58,237,.45));transition:transform .3s ease;}
 .step:hover .step-icon svg{transform:scale(1.14) rotate(-3deg);}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .75s cubic-bezier(.16,1,.3,1),transform .75s cubic-bezier(.16,1,.3,1);}
+.reveal.in{opacity:1;transform:none;}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none;}}
 .step-title{font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:6px;}
 .step-desc{font-size:13px;color:#94a3b8;line-height:1.7;}
 
@@ -658,6 +661,14 @@ if(termEl&&'IntersectionObserver' in window){
   const io=new IntersectionObserver((ents,obs)=>{ents.forEach(en=>{if(en.isIntersecting){playDemo();obs.disconnect();}});},{threshold:.25});
   io.observe(termEl);
 }else{playDemo();}
+
+// Scroll-reveal for below-the-fold sections (GSAP-ScrollTrigger / Aceternity feel, dependency-free).
+(()=>{
+  const targets=document.querySelectorAll('.sh, .analyzer-card, .terminal');
+  if(!('IntersectionObserver' in window)||!targets.length) return;
+  const ro=new IntersectionObserver((es,o)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');o.unobserve(e.target);}});},{threshold:.12,rootMargin:'0px 0px -6% 0px'});
+  targets.forEach(t=>{t.classList.add('reveal');ro.observe(t);});
+})();
 
 // ── LIVE COUNTER ── seed + per-session jitter so it never reads the same on reload
 (function(){
