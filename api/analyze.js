@@ -17,9 +17,20 @@ module.exports = async function handler(req, res) {
     return res.status(413).json({ error: 'Strategy text is too long.' });
   }
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // A real Anthropic key looks like `sk-ant-...` and is ~100+ chars. Catch a
+  // missing/placeholder/truncated key here so we return a clean JSON error
+  // instead of letting the SDK throw an unhandled 401 → FUNCTION_INVOCATION_FAILED.
+  if (!apiKey || apiKey.length < 40) {
+    console.error('analyze: ANTHROPIC_API_KEY missing or invalid (len=' + (apiKey ? apiKey.length : 0) + ')');
+    return res.status(503).json({ error: 'The analysis service is temporarily unavailable. Please try again shortly.' });
+  }
 
-  const msg = await client.messages.create({
+  const client = new Anthropic({ apiKey });
+
+  let msg;
+  try {
+    msg = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 900,
     temperature: 0.2, // low → consistent screening verdict on repeat runs of the same strategy
@@ -51,7 +62,12 @@ Classification rules:
 
 Be honest, critical, and concise. The vast majority of strategies fail screening. Social media hype is not evidence of edge.`
     }]
-  });
+    });
+  } catch (err) {
+    // Auth failure, model access, rate limit, network — never crash the function.
+    console.error('analyze: Anthropic call failed:', err.status, err.message);
+    return res.status(502).json({ error: 'The analysis service is temporarily unavailable. Please try again shortly.' });
+  }
 
   const text = msg.content[0].text.trim();
   let result;
