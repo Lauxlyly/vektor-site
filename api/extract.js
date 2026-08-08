@@ -19,13 +19,18 @@ async function fetchSupadataTranscript(url) {
   const endpoint = 'https://api.supadata.ai/v1/transcript?text=true&mode=auto&url=' + encodeURIComponent(url);
   // Abort a slow transcription before the function's hard timeout so we can
   // still fall back to the caption instead of returning a raw 504.
+  // One ~40s budget for the whole transcription — Supadata may serve a cold AI transcription
+  // either SYNCHRONOUSLY (the GET blocks 20-45s) or as a 202 job. 40s leaves headroom under the
+  // 60s maxDuration for the OG-caption fallback. (Lowering this is what made cold reels return
+  // only the caption — the sync transcription was aborted early.)
+  const deadline = Date.now() + 40000;
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 12000);
+  const timer = setTimeout(() => ctrl.abort(), Math.max(1000, deadline - Date.now()));
   try {
     const resp = await fetch(endpoint, { headers: { 'x-api-key': key }, signal: ctrl.signal });
     if (resp.status === 202) {
       const { jobId } = await resp.json();
-      return jobId ? await pollSupadataJob(jobId, key) : null;
+      return jobId ? await pollSupadataJob(jobId, key, Math.max(3000, deadline - Date.now())) : null;
     }
     if (!resp.ok) return null;
     const data = await resp.json();
