@@ -417,6 +417,7 @@ footer a{color:#94a3b8;}
           </div>
           <div class="url-hint">YouTube · Instagram · TikTok · X — we auto-pull the spoken transcript (or caption), then you review &amp; edit below</div>
           <div class="url-status" id="urlStatus"></div>
+          <div id="urlProg" style="display:none;margin-top:9px;height:5px;background:rgba(124,58,237,.14);border-radius:100px;overflow:hidden;"><div id="urlBar" style="height:100%;width:0;background:linear-gradient(90deg,#7c3aed,#60a5fa);transition:width .4s ease;box-shadow:0 0 10px rgba(124,58,237,.5);"></div></div>
         </div>
 
         <div class="field-divider">then review &amp; edit</div>
@@ -739,7 +740,18 @@ async function fetchFromUrl(){
   }
   btn.disabled=true; const orig=btn.textContent; btn.textContent='…';
   status.className='url-status load';
-  status.textContent='Transcribing the video — this can take up to a minute. Please wait…';
+
+  // Live progress so a slow (cold) transcription never looks like a crash.
+  const prog=document.getElementById('urlProg'), bar=document.getElementById('urlBar');
+  const EST=48000, t0=Date.now();
+  if(prog) prog.style.display='block';
+  const stages=['fetching the video…','extracting audio…','transcribing speech…','cleaning up the text…','almost there…'];
+  status.textContent='0% · fetching the video…';
+  const tick=setInterval(()=>{
+    const el=Date.now()-t0, p=Math.min(92,Math.round(el/EST*92));
+    if(bar) bar.style.width=p+'%';
+    status.textContent=p+'% · '+stages[Math.min(stages.length-1,Math.floor(el/EST*stages.length))];
+  },400);
 
   // Client-side timeout so a slow transcription never hangs the button forever.
   const ctrl=new AbortController();
@@ -749,20 +761,31 @@ async function fetchFromUrl(){
     // The server may return a non-JSON error page (e.g. a gateway timeout); read defensively.
     const raw=await resp.text();
     let data={}; try{ data=JSON.parse(raw); }catch(_){ data={}; }
+    clearInterval(tick);
     if(!resp.ok){
+      if(bar) bar.style.width='0%'; if(prog) prog.style.display='none';
       status.className='url-status err';
       status.textContent=data.error||'That link took too long or couldn’t be read. Try again, or paste the text manually.';
       return;
     }
+    if(bar) bar.style.width='100%';
     const ta=document.getElementById('strategyInput');
     ta.value = ta.value.trim() ? (ta.value.trim()+'\n\n'+data.text) : data.text;
     ta.focus();
     status.className='url-status ok';
-    status.textContent='✓ '+(data.note||'Text imported.')+' Review and edit below, then Analyze.';
+    // Cold transcriptions sometimes fall back to the caption on the first try; a retry
+    // usually returns the full spoken transcript from Supadata's cache.
+    const capHint = data.source==='caption'
+      ? ' — only the caption was available; click Fetch again for the full spoken transcript.'
+      : '';
+    status.textContent='✓ '+(data.note||'Text imported.')+capHint+' Review and edit below, then Analyze.';
+    setTimeout(()=>{ if(prog) prog.style.display='none'; }, 1400);
   }catch(e){
+    clearInterval(tick);
+    if(prog) prog.style.display='none';
     status.className='url-status err';
     status.textContent = e.name==='AbortError'
-      ? 'That video took too long to transcribe. Try a shorter clip, or paste the text manually.'
+      ? 'That video took too long to transcribe. Click Fetch again — the transcript is usually ready on the second try.'
       : 'Couldn’t reach the link service. Try again, or paste the text manually.';
   }finally{
     clearTimeout(timer);

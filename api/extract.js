@@ -20,7 +20,7 @@ async function fetchSupadataTranscript(url) {
   // Abort a slow transcription before the function's hard timeout so we can
   // still fall back to the caption instead of returning a raw 504.
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 40000);
+  const timer = setTimeout(() => ctrl.abort(), 12000);
   try {
     const resp = await fetch(endpoint, { headers: { 'x-api-key': key }, signal: ctrl.signal });
     if (resp.status === 202) {
@@ -37,9 +37,14 @@ async function fetchSupadataTranscript(url) {
   }
 }
 
-async function pollSupadataJob(jobId, key, tries = 6) {
+// Poll the async transcription job until it completes or we approach the function's
+// time budget. A COLD speech-to-text of a reel often takes 20-45s; the old 15s window
+// gave up too early and fell back to the caption (a warm/cached retry then succeeded).
+// maxDuration is 60s, so poll up to ~45s and keep headroom for the response.
+async function pollSupadataJob(jobId, key, deadlineMs = 45000) {
   const url = 'https://api.supadata.ai/v1/transcript/' + encodeURIComponent(jobId);
-  for (let i = 0; i < tries; i++) {
+  const start = Date.now();
+  while (Date.now() - start < deadlineMs) {
     await new Promise(r => setTimeout(r, 2500));
     try {
       const resp = await fetch(url, { headers: { 'x-api-key': key } });
