@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case Study: We Mechanized a Popular Breakout Ruleset and Ran It on {{VERIFY:N}} Months of Data — VEKTOR</title>
+<meta name="description" content="A real, pre-registered, out-of-sample falsification of one popular crypto breakout rule family. Not an opinion — a number. This is what VEKTOR does when a strategy is explicit enough to code.">
+<!--
+  VEKTOR case-study page (deliverable D). Duo-approved + cold-audited 2026-08-12.
+  INTEGRITY RULES BAKED IN — do not remove before publish:
+  1. Test a rule FAMILY, never a named person (defamation + honesty).
+  2. Claim = "falsification of THIS mechanical proxy" only. No generalization to
+     "these strategies lose", to a named methodology, to the reader's strategy, or to the future.
+  3. Every double-brace VERIFY slot (open-brace open-brace + VERIFY + close-brace close-brace)
+     MUST be replaced with the exact pre-registered figure from the append-only census ledger
+     BEFORE this page goes live. Do NOT ship placeholder values. Publishing an unverified number
+     = the truth gap we just fixed.
+  4. THE CONCLUSION IS GATED TOO, NOT JUST THE DIGITS. The headline verdict badge and the
+     data-window ("N months") are verify-slots on purpose. Re-DERIVE the badge text from the
+     pasted figures — do not assume it. Publish the "worse than a random entry" claim ONLY if the
+     ledger shows the proxy lost to BOTH nulls net-of-triple-cost out-of-sample. If it beat even one
+     null, or the window is not what the badge says, this family is the WRONG case study — pick
+     another or do not publish. The loudest claim on the page must be the most-checked, not the least.
+  5. PRE-PUBLISH GATE (code-enforced): run  node scripts/check-publishable.js  (or npm run check:publish).
+     It fails the publish if any double-brace VERIFY slot remains. Mirrors the census engine's own
+     code-enforced hard-stop gates. Honor-system comments are not enough. The machine sigil is
+     deliberately the two-open-brace form so this instruction text never trips its own gate.
+  6. Not linked from the site nav until it passes the gate. Add the nav link only after publish.
+-->
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;line-height:1.65;}
+.wrap{max-width:760px;margin:0 auto;padding:52px 22px 100px;}
+.logo{font-family:monospace;font-size:13px;font-weight:800;letter-spacing:4px;background:linear-gradient(135deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:40px;display:inline-block;text-decoration:none;}
+.kicker{color:#a78bfa;font-weight:700;letter-spacing:2px;text-transform:uppercase;font-size:12px;font-family:monospace;margin-bottom:16px;}
+h1{font-size:clamp(26px,4.5vw,38px);line-height:1.2;font-weight:800;margin-bottom:14px;background:linear-gradient(135deg,#fff,#c4b5fd);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+h2{font-size:20px;font-weight:700;margin:42px 0 12px;color:#e2e8f0;}
+.lede{color:#94a3b8;font-size:18px;line-height:1.6;}
+.verdict{display:inline-block;font-weight:800;font-family:monospace;padding:4px 12px;border-radius:6px;background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.35);}
+.panel{background:#0a0a16;border:1px solid rgba(124,58,237,.2);border-radius:12px;padding:20px 22px;margin:18px 0;}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:520px){.stat-grid{grid-template-columns:1fr;}}
+.stat{background:#0a0a16;border:1px solid rgba(124,58,237,.2);border-radius:10px;padding:16px 18px;}
+.stat .n{font-size:26px;font-weight:800;font-family:monospace;}
+.stat .l{color:#64748b;font-size:12.5px;margin-top:4px;line-height:1.45;}
+pre{background:#060610;border:1px solid rgba(124,58,237,.18);border-radius:10px;padding:16px;overflow:auto;font-size:12.5px;color:#cbd5e1;font-family:ui-monospace,Menlo,monospace;line-height:1.6;}
+.limits{border-left:3px solid #fbbf24;}
+.limits h2{margin-top:0;color:#fbbf24;}
+ul{padding-left:20px;}li{margin:7px 0;color:#cbd5e1;}
+.mut{color:#64748b;font-size:14px;}
+.verify{color:#fbbf24;font-weight:700;}
+em{color:#a78bfa;font-style:normal;}
+a.cta{display:inline-block;margin-top:10px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-weight:800;padding:13px 26px;border-radius:9px;text-decoration:none;box-shadow:0 6px 24px rgba(124,58,237,.35);}
+footer{color:#475569;font-size:12.5px;margin-top:56px;border-top:1px solid #0d0d18;padding-top:22px;line-height:1.8;font-family:monospace;}
+footer .verify{color:#fbbf24;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="logo" href="/">VEKTOR</a>
+
+  <div class="kicker">Falsification Case Study</div>
+  <h1>We mechanized a popular breakout ruleset and ran it on {{VERIFY:N}} months of real data.</h1>
+  <p class="lede">Not an opinion. A pre-registered test. The ruleset came back
+  <span class="verdict">{{VERIFY:re-derive badge from ledger — e.g. "worse than a random entry"}}</span> out-of-sample.</p>
+
+  <div class="panel">
+    <p style="margin-bottom:12px"><strong>What we tested.</strong> A widely-shared <em>level-breakout /
+    market-structure</em> rule family — the kind pasted into our free screen every week: mark recent
+    higher-timeframe swing points, go long when a lower timeframe closes above a marked level, short
+    when it rejects. We wrote those stated rules into an explicit, mechanical proxy, pre-registered the
+    pass/fail bar <em>before</em> looking at the out-of-sample data, and ran it.</p>
+    <p class="mut" style="margin-bottom:0">We are describing a <strong>rule family</strong>, not any
+    person, channel, or brand. The claim below is about this disclosed ruleset — nothing more.</p>
+  </div>
+
+  <h2>The result</h2>
+  <div class="stat-grid">
+    <div class="stat"><div class="n verify">{{VERIFY:-0.197%}}</div><div class="l">net expectancy per trade, after triple-cost</div></div>
+    <div class="stat"><div class="n verify">{{VERIFY:~1,832}}</div><div class="l">out-of-sample setups (sealed)</div></div>
+    <div class="stat"><div class="n verify">{{VERIFY:result vs. random-entry null}}</div><div class="l">both nulls must be lost to for the headline claim to hold</div></div>
+    <div class="stat"><div class="n verify">{{VERIFY:count}}</div><div class="l">walk-forward windows, out-of-sample only</div></div>
+  </div>
+  <p class="mut" style="margin-top:14px">Every figure above is drawn from an append-only, pre-registered census ledger, and a
+  code-enforced pre-publish gate blocks this page until each one is resolved against it.</p>
+
+  <h2>The pre-registered ruleset we actually ran</h2>
+  <p style="color:#cbd5e1">We publish it in full so you can check our work. If we proxied a rule differently than you'd
+  state it, that disagreement is the point — tell us and we'll show the exact logic.</p>
+<pre>ENTRY (long):  1H close &gt; most-recent marked 4H swing high
+ENTRY (short): 1H close &lt; most-recent marked 4H swing low  (rejection)
+LEVELS:        swing points = fractal high/low over N={{VERIFY:bars}} bars, 4H
+STOP:          {{VERIFY:e.g. structural — opposite side of the broken level}}
+TARGET/EXIT:   {{VERIFY:e.g. fixed R multiple / opposite level reclaim}}
+UNIVERSE:      {{VERIFY:symbols}}, {{VERIFY:date range — N months}}
+COSTS:         triple-cost stress (fees + slippage + spread), applied every trade
+NULLS (must beat both): (A) random-time entry, vol-matched
+                        (B) same signal, randomized/wrong-sign entry
+SPLIT:         in-sample fit → sealed out-of-sample scoring (never re-touched)
+PASS BAR:      pre-registered before OOS; net-of-cost expectancy &gt; 0 AND beats both nulls</pre>
+
+  <div class="panel limits">
+    <h2>What this is — and what it is NOT</h2>
+    <ul>
+      <li><strong>IS:</strong> a real, pre-registered, out-of-sample falsification of <em>this one
+        mechanical ruleset</em>.</li>
+      <li><strong>IS NOT</strong> a claim about any specific person, channel, or named methodology.</li>
+      <li><strong>IS NOT</strong> a claim that "breakout strategies lose" — it is one rule family, one
+        universe, one window.</li>
+      <li><strong>IS NOT</strong> a claim about <em>your</em> strategy. Your rules, your discretion, and
+        your risk management may differ — that's exactly what a Falsification Review checks.</li>
+      <li><strong>IS NOT</strong> a prediction. Out-of-sample past performance does not bind the future.</li>
+      <li>It <strong>is</strong> a proxy of <em>stated</em> rules, not of anyone's live discretion. A
+        generous proxy can still miss a real discretionary edge — and if the edge lives entirely in
+        discretion, that means it is <em>unfalsifiable as stated</em>, which is itself a finding.</li>
+    </ul>
+  </div>
+
+  <h2>Why this matters</h2>
+  <p style="color:#cbd5e1">Most tools tell you a strategy "looks risky." That's an opinion. We mechanize the stated rules and
+  let {{VERIFY:N}} months of real data return a verdict. When a strategy is explicit enough to code, "we
+  don't know" is a cop-out — the honest answer is a number.</p>
+
+  <p><a class="cta" href="/#analyze">Run the free screen on your strategy →</a></p>
+
+  <footer>
+    Method: pre-registered pass/fail, dual-null, walk-forward out-of-sample, triple-cost stress,
+    append-only ledger. We report exactly what we tested and claim exactly that much.
+    <br><br><strong>Provenance.</strong> Figures transcribed directly from the append-only census ledger —
+    study/run ID <span class="verify">{{VERIFY:ledger run id}}</span>, out-of-sample seal dated
+    <span class="verify">{{VERIFY:OOS seal date}}</span>. Read straight from the ledger, not from memory.
+    <br><br>VEKTOR does not provide financial advice. Falsification is about whether a stated ruleset
+    survives its own test — not a recommendation to trade or not trade.
+  </footer>
+
+</div>
+</body>
+</html>

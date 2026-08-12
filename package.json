@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "test": "node test/security.test.js && node test/extract.test.js && node test/contrast.test.js && node test/page-guardrails.test.js",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check:publish": "node scripts/check-publishable.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.53.0",
