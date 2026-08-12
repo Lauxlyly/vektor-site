@@ -138,10 +138,11 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Report generation failed. Please try refreshing the page.' });
   }
 
-  // Return the report to the browser immediately (does not block on email)
-  res.json({ report });
-
-  // Fire-and-forget: email a copy to the customer + owner (best effort)
+  // Email the report to the customer + owner BEFORE sending the HTTP response.
+  // On Vercel the function can be frozen the moment the response is returned, so
+  // any await AFTER res.json() may never run — that's why the payment webhook mail
+  // arrived but the report mail didn't. Report generation already took ~20s, so the
+  // extra ~1-2s here is negligible and guarantees delivery.
   if (process.env.RESEND_API_KEY) {
     try {
       const auditId = makeAuditId(session_id);
@@ -170,4 +171,7 @@ module.exports = async function handler(req, res) {
       console.error('Email send error (non-fatal):', err.message);
     }
   }
+
+  // Respond last, once the emails have been dispatched.
+  res.json({ report });
 };
