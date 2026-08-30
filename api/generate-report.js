@@ -43,12 +43,24 @@ You did NOT run any computation. You have no data feed, no backtest engine, no t
 - Never invent p-values, Sharpe ratios, drawdowns, or trade counts.
 - The text may be a raw auto-transcription. Read numbers/ratios charitably: spoken "one to four" often lands as "104" or "1:04" and almost always means a 1:4 risk-reward. Interpret the intended meaning, note if a figure is genuinely ambiguous, and never propagate an obvious transcription typo as if it were the trader's stated value.
 
+# EDGE-SOURCE & COUNTERPARTY (a qualitative read available from a description)
+Unlike the statistical checks below (which need data and are therefore NEEDS DATA), you CAN qualitatively assess whether the submission STATES a plausible edge thesis and persistence mechanism. This is an assessment of the described thesis — NOT evidence the edge is real, durable, un-arbitraged, or economically large. Frame it strictly at that level; do not imply it was verified.
+A durable edge, if one exists, comes from exactly ONE of: SPEED, INFORMATION, STRUCTURE (being paid to provide liquidity / take the other side of forced/mechanical flow), or RISK PREMIUM (being paid to hold a risk others avoid). Prediction from visible chart patterns is not a durable edge.
+Classify edge_source using the SAME enum and definitions as the free screen (keep them identical): use "prediction-only" ONLY for explicit visible-pattern prediction; "none-identifiable" when the description is too thin to name a source. Distinguish TERSE from EDGELESS — missing detail is not proof no edge exists.
+Counterparty: name the party or flow that plausibly pays, loses, cedes spread, or accepts worse terms, and why it may persist (urgency, hedging, liquidation, mandate, inventory constraint, latency disadvantage, information gap, or risk transfer). Do NOT invent one — if unsupported, write "No identifiable counterparty from the description." A missing/vague edge source is one of the most important findings, but it does NOT override a concrete mechanical fatal flaw (e.g. guaranteed-blow-up loss-averaging), which stays the priority whenever one is present.
+If your edge classification differs from a prior free quick-screen, treat this report as the authoritative deeper assessment and state plainly why the fuller read changed the call.
+
 Return ONLY a valid JSON object — no markdown, no extra text:
 {
   "verdict": "STOP" | "REWORK" | "GO_CONDITIONAL",
   "verdict_color": "#ef4444" | "#fbbf24" | "#4ade80",
   "verdict_emoji": "🔴" | "🟠" | "🟡",
   "executive_summary": "2-3 clear sentences: what the submission actually is, the verdict, and the single most important reason — framed as a risk/plausibility judgement, not as a computed result.",
+  "edge_analysis": {
+    "edge_source": "speed" | "information" | "structure" | "risk-premium" | "prediction-only" | "none-identifiable",
+    "counterparty": "one sentence: who plausibly loses to this trade and why they can't stop — or 'No identifiable counterparty'",
+    "assessment": "2-3 sentences assessing whether the description STATES a plausible edge thesis and persistence mechanism (NOT evidence the edge exists or survives costs/competition). If it relies on visible-pattern prediction with no nameable counterparty, say that is a primary concern — but do not let it override any concrete mechanical fatal flaw."
+  },
   "tests": [
     { "name": "Look-ahead & Leakage Scan", "result": "NEEDS DATA" | "LIMITED DATA" | "FAIL" | "PASS" | "MARGINAL", "result_color": "#94a3b8" | "#ef4444" | "#4ade80" | "#fbbf24", "finding": "Follow the finding template above." },
     { "name": "Cost & Slippage Stress", "result": "...", "result_color": "...", "finding": "..." },
@@ -133,6 +145,14 @@ module.exports = async function handler(req, res) {
     const match = raw.match(/\{[\s\S]*\}/);
     report = match ? JSON.parse(match[0]) : null;
     if (!report) throw new Error('Invalid JSON from model');
+    // Enforce the edge_source enum server-side: off-enum -> none-identifiable, so
+    // the report/email UI can never paint an unknown class green.
+    if (report.edge_analysis) {
+      const OK_ES = ['speed', 'information', 'structure', 'risk-premium', 'prediction-only', 'none-identifiable'];
+      if (!OK_ES.includes(String(report.edge_analysis.edge_source || '').toLowerCase())) {
+        report.edge_analysis.edge_source = 'none-identifiable';
+      }
+    }
   } catch (err) {
     console.error('generate-report error:', err.message);
     return res.status(500).json({ error: 'Report generation failed. Please try refreshing the page.' });

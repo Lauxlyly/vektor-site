@@ -843,7 +843,7 @@ async function runAnalysis(){
       if(!resp.ok) throw new Error('HTTP '+resp.status);
       return await resp.json();
     } catch(e){
-      return {verdict:'REWORK',primary_finding:'Analysis service temporarily unavailable — please try again.',red_flags:['Could not reach analysis endpoint'],what_would_help:'Reload and try again.',confidence:'LOW',preliminary_note:'Quick screen only.'};
+      return {verdict:'REWORK',primary_finding:'Analysis service temporarily unavailable — please try again.',red_flags:['Could not reach analysis endpoint'],edge_source:'none-identifiable',counterparty:'Not determinable — service unavailable.',what_would_help:'Reload and try again.',confidence:'LOW',preliminary_note:'Quick screen only.'};
     }
   })();
   // Reveal only after BOTH the result is ready AND the minimum analysis time has passed.
@@ -868,6 +868,37 @@ async function runAnalysis(){
   badge.querySelector('#verdictDot').className='verdict-dot '+dotCls;
   document.getElementById('verdictWord').textContent=emoji+' '+label;
   document.getElementById('verdictFinding').textContent=data.primary_finding||'';
+
+  // Edge-source & counterparty — the "does a real edge even exist?" layer.
+  // Shown free: it is the one judgement genuinely assessable from a description.
+  (function(){
+    // Green is whitelisted to the 4 real edge sources ONLY. Anything unknown/
+    // malformed (hallucination, typo, schema drift) renders neutral gray — never
+    // a reassuring green — so a model slip can't show false confidence.
+    const STRONG=new Set(['speed','information','structure','risk-premium']);
+    const WEAK=new Set(['prediction-only','none-identifiable']);
+    const es=(data.edge_source||'').toString().toLowerCase();
+    const cp=(data.counterparty||'').toString();
+    const strong=STRONG.has(es);
+    const esLabel=(strong||WEAK.has(es))?es.replace(/-/g,' '):'unclassified';
+    const pill=strong?'background:rgba(74,222,128,.13);color:#4ade80;'
+      :WEAK.has(es)?'background:rgba(239,68,68,.15);color:#f87171;'
+      :'background:rgba(148,163,184,.15);color:#94a3b8;';
+    let box=document.getElementById('edgeLine');
+    if(!box){
+      box=document.createElement('div');box.id='edgeLine';
+      const vf=document.getElementById('verdictFinding');
+      vf.parentNode.insertBefore(box,vf.nextSibling);
+    }
+    if(!es&&!cp){box.innerHTML='';return;}
+    box.innerHTML=
+      `<div style="max-width:540px;margin:0 auto 20px;font-size:13px;line-height:1.6;text-align:left;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 16px;">`
+      +`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;">`
+      +`<span style="font-family:monospace;letter-spacing:1px;color:#94a3b8;font-size:11px;text-transform:uppercase;">Edge source</span>`
+      +`<span style="font-family:monospace;font-weight:800;padding:3px 10px;border-radius:100px;font-size:12px;${pill}">${esc(esLabel)}</span></div>`
+      +`<div style="color:#cbd5e1;"><span style="color:#94a3b8;">Who loses to you &amp; why they can't stop: </span>${esc(cp||'—')}</div>`
+      +`</div>`;
+  })();
 
   // Scorecard — free tier reveals ONLY the top finding; the rest are locked.
   const grid=document.getElementById('scorecardGrid');
