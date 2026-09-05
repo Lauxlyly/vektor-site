@@ -50,6 +50,17 @@ Classify edge_source using the SAME enum and definitions as the free screen (kee
 Counterparty: name the party or flow that plausibly pays, loses, cedes spread, or accepts worse terms, and why it may persist (urgency, hedging, liquidation, mandate, inventory constraint, latency disadvantage, information gap, or risk transfer). Do NOT invent one — if unsupported, write "No identifiable counterparty from the description." A missing/vague edge source is one of the most important findings, but it does NOT override a concrete mechanical fatal flaw (e.g. guaranteed-blow-up loss-averaging), which stays the priority whenever one is present.
 If your edge classification differs from a prior free quick-screen, treat this report as the authoritative deeper assessment and state plainly why the fuller read changed the call.
 
+# TEXT-JUDGEABLE ILLUSION GUARDS
+These remain qualitative review items unless real trade/price data was supplied — never label them PASS/FAIL from narrative alone; they are NEEDS DATA (or LIMITED DATA) like the checks below.
+
+Mean / Median Skew Check: If a fat-tailed strategy cites an average/mean return, require the median, the hit rate (share of positive events), the outlier/concentration profile, and the treatment of untradeable/unexitable cases. Treat an extreme headline number as more likely an outlier/concentration or pipeline-artifact risk than a discovery until shown otherwise. The finding must state that these values were NOT computed here unless the submission supplied them.
+
+Exit Feasibility Check: For illiquid, thin, latency-sensitive, copy-trading, or fixed-horizon strategies, require the fraction of signals exitable at the stated horizon and the rule for signals with no exit. Do NOT claim exits failed unless supplied data shows it. Skip for slow, liquid, single-instrument strategies unless the text raises fill/liquidity/horizon ambiguity.
+
+Source Concentration Check: For copy-trading, KOL, wallet-following, signal-following, or any claimed multi-source strategy, require the number of genuinely independent sources and the share of events from the largest few. Do NOT apply to unrelated single-instrument strategies.
+
+Surfacing: emit these as the last three entries of tests[] using exactly the names above. When a guard is not relevant to the submitted strategy type, still emit it with result "NEEDS DATA" and a one-line finding saying why it does not apply — never silently omit an entry. Never present any of them as a computed result.
+
 Return ONLY a valid JSON object — no markdown, no extra text:
 {
   "verdict": "STOP" | "REWORK" | "GO_CONDITIONAL",
@@ -67,9 +78,13 @@ Return ONLY a valid JSON object — no markdown, no extra text:
     { "name": "Random-Entry Null Comparison", "result": "...", "result_color": "...", "finding": "..." },
     { "name": "Permuted-Timing Null", "result": "...", "result_color": "...", "finding": "..." },
     { "name": "Walk-Forward Out-of-Sample", "result": "...", "result_color": "...", "finding": "..." },
-    { "name": "Multiple-Testing / Selection-Bias Check", "result": "...", "result_color": "...", "finding": "..." }
+    { "name": "Multiple-Testing / Selection-Bias Check", "result": "...", "result_color": "...", "finding": "..." },
+    { "name": "Mean / Median Skew Check", "result": "...", "result_color": "...", "finding": "..." },
+    { "name": "Exit Feasibility Check", "result": "...", "result_color": "...", "finding": "..." },
+    { "name": "Source Concentration Check", "result": "...", "result_color": "...", "finding": "..." }
   ],
   "what_would_change_verdict": [
+    "A zero-latency, zero-cost best-case backtest first, keeping every event (no dropped/unfillable trades): if the strategy fails at lag 0 with no fees, slippage, or latency, every realistic downstream variant is dominated and the test is finished in an afternoon.",
     "Concrete input that would let this be genuinely tested (e.g. a formal ruleset with entry/exit/sizing, plus a trade log or backtest with dates).",
     "A second concrete, correctly-specified requirement (correct metrics for the strategy type — e.g. probability of ruin before target, expected log-growth, terminal-wealth distribution — not just Sharpe for an extreme-skew system).",
     "A third: full track-record disclosure needed to rule out survivorship/selection bias (number of blown accounts, total capital deposited, withdrawals)."
