@@ -25,14 +25,14 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow-x:hi
 #canvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
 
 /* NAV */
-nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:var(--space-4) var(--space-5);display:flex;justify-content:space-between;align-items:center;background:linear-gradient(to bottom,rgba(5,5,7,.95),transparent);backdrop-filter:blur(12px);}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:var(--space-4) var(--space-5);display:flex;justify-content:space-between;align-items:center;background:linear-gradient(to bottom,rgba(5,5,7,.96),rgba(5,5,7,.72) 60%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
 .logo{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:5px;color:var(--ink);}
 .nav-cta{background:linear-gradient(135deg,var(--accent-1),var(--accent-3));color:#fff;padding:9px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;border:none;cursor:pointer;text-decoration:none;white-space:nowrap;}
 
 section{position:relative;z-index:1;}
 
 /* ── HERO ── */
-.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--space-8) var(--space-5) var(--space-7);text-align:center;overflow:hidden;}
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:safe center;padding:clamp(96px,13vh,132px) var(--space-5) var(--space-7);text-align:center;overflow:hidden;}
 .hero-glow{position:absolute;border-radius:50%;filter:blur(90px);pointer-events:none;opacity:.55;}
 .hero-spotlight{position:absolute;inset:0;pointer-events:none;background:radial-gradient(560px circle at var(--hx,50%) var(--hy,28%),rgba(139,92,246,.13),transparent 62%);transition:background .12s ease;}
 .steps{perspective:900px;}
@@ -132,8 +132,9 @@ section{position:relative;z-index:1;}
 
 .field{margin-bottom:var(--space-4);}
 .field label{display:block;font-size:11px;font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;color:#cabdfa;margin-bottom:var(--space-2);}
-.field textarea,.field input{width:100%;background:var(--bg);border:1px solid var(--hairline);border-radius:var(--radius-sm);padding:12px 14px;color:var(--ink);font-size:14px;font-family:var(--sans);outline:none;transition:border-color .25s var(--ease);resize:vertical;}
-.field textarea:focus,.field input:focus{border-color:var(--hairline-strong);}
+.field textarea,.field input{width:100%;background:var(--surface-2);border:1px solid var(--hairline-strong);border-radius:var(--radius-sm);padding:12px 14px;color:var(--ink);font-size:14px;font-family:var(--sans);outline:none;box-shadow:inset 0 1px 3px rgba(0,0,0,.35);transition:border-color .2s var(--ease),box-shadow .2s var(--ease);resize:vertical;}
+.field textarea::placeholder,.field input::placeholder{color:var(--ink-faint);}
+.field textarea:focus,.field input:focus{border-color:var(--accent-1);box-shadow:inset 0 1px 3px rgba(0,0,0,.35),0 0 0 3px var(--accent-soft);}
 .field textarea{min-height:120px;}
 
 .analyze-btn{width:100%;background:linear-gradient(135deg,var(--accent-1),var(--accent-3));color:#fff;padding:15px;border-radius:var(--radius-sm);font-size:15px;font-weight:600;border:none;cursor:pointer;box-shadow:0 6px 22px -6px rgba(139,92,246,.4);transition:transform .3s var(--ease),opacity .3s var(--ease);}
@@ -613,16 +614,31 @@ The more detail, the better: entry trigger, exit, timeframe, instrument, how you
 
 <script>
 // ── PARTICLES ──
+// Perf notes: no per-particle canvas shadowBlur (it was ~1000 blurred ops/frame and the
+// main cause of jank) — a light blur is kept only on the ~50 tunnel heads. The grid is
+// rendered once to an offscreen canvas and blitted. The loop pauses on a hidden tab and
+// is skipped entirely under prefers-reduced-motion.
 const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
-function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
+const REDUCED=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+let W=innerWidth,H=innerHeight;
+const gridCanvas=document.createElement('canvas'),gctx=gridCanvas.getContext('2d');
+function buildGrid(){
+  gridCanvas.width=W;gridCanvas.height=H;
+  gctx.clearRect(0,0,W,H);gctx.strokeStyle='#6d28d9';gctx.lineWidth=.5;gctx.globalAlpha=1;
+  for(let x=0;x<W;x+=70){gctx.beginPath();gctx.moveTo(x,0);gctx.lineTo(x,H);gctx.stroke();}
+  for(let y=0;y<H;y+=70){gctx.beginPath();gctx.moveTo(0,y);gctx.lineTo(W,y);gctx.stroke();}
+}
+function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight;buildGrid();}
 resize();window.addEventListener('resize',resize);
-let mx=innerWidth/2,my=innerHeight/2;
-window.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+let mx=W/2,my=H/2;
+window.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;},{passive:true});
+let scrollP=0;
+window.addEventListener('scroll',()=>{scrollP=Math.min(scrollY/((document.body.scrollHeight-H)||1),1);},{passive:true});
 
 class P{
   reset(){
-    const a=Math.random()*Math.PI*2,r=30+Math.random()*Math.min(innerWidth,innerHeight)*.42;
-    this.x=innerWidth/2+Math.cos(a)*r;this.y=innerHeight/2+Math.sin(a)*r;
+    const a=Math.random()*Math.PI*2,r=30+Math.random()*Math.min(W,H)*.42;
+    this.x=W/2+Math.cos(a)*r;this.y=H/2+Math.sin(a)*r;
     this.vx=(Math.random()-.5)*.35;this.vy=(Math.random()-.5)*.35;
     this.life=0;this.maxLife=.5+Math.random()*.5;this.size=Math.random()*2+.4;
     const h=248+Math.random()*50,s=70+Math.random()*30;
@@ -631,8 +647,8 @@ class P{
   constructor(){this.reset();}
   update(){
     this.tail.push({x:this.x,y:this.y});
-    if(this.tail.length>10)this.tail.shift();
-    const dx=innerWidth/2-this.x,dy=innerHeight/2-this.y,d=Math.sqrt(dx*dx+dy*dy);
+    if(this.tail.length>6)this.tail.shift();
+    const dx=W/2-this.x,dy=H/2-this.y,d=Math.sqrt(dx*dx+dy*dy);
     this.x+=(dx/d)*(.5+Math.random()*.28)+this.vx;
     this.y+=(dy/d)*(.5+Math.random()*.28)+this.vy;
     const mdx=mx-this.x,mdy=my-this.y,md=Math.sqrt(mdx*mdx+mdy*mdy);
@@ -642,21 +658,22 @@ class P{
   }
   draw(){
     const al=Math.sin((this.life/this.maxLife)*Math.PI)*.75;
+    ctx.strokeStyle=this.color;
     for(let i=1;i<this.tail.length;i++){
       const t=i/this.tail.length;
-      ctx.globalAlpha=al*t*.55;ctx.strokeStyle=this.color;ctx.lineWidth=this.size*t;
-      ctx.shadowBlur=5;ctx.shadowColor=this.color;
+      ctx.globalAlpha=al*t*.5;ctx.lineWidth=this.size*t;
       ctx.beginPath();ctx.moveTo(this.tail[i-1].x,this.tail[i-1].y);
       ctx.lineTo(this.tail[i].x,this.tail[i].y);ctx.stroke();
     }
-    ctx.globalAlpha=al;ctx.fillStyle=this.color;ctx.shadowBlur=10;ctx.shadowColor=this.color;
+    ctx.globalAlpha=al;ctx.fillStyle=this.color;ctx.shadowBlur=6;ctx.shadowColor=this.color;
     ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
   }
 }
 class A{
   constructor(){this.reset();}
   reset(){
-    this.x=Math.random()*innerWidth;this.y=Math.random()*innerHeight;
+    this.x=Math.random()*W;this.y=Math.random()*H;
     this.vx=(Math.random()-.5)*.14;this.vy=(Math.random()-.5)*.14;
     this.size=Math.random()*1.4+.3;this.life=0;this.maxLife=.4+Math.random()*.6;
     this.color=`hsl(${252+Math.random()*55},80%,65%)`;
@@ -665,30 +682,27 @@ class A{
     const dx=mx-this.x,dy=my-this.y,d=Math.sqrt(dx*dx+dy*dy);
     if(d<180){this.vx+=dx/d*.012;this.vy+=dy/d*.012;}
     this.x+=this.vx;this.y+=this.vy;this.vx*=.99;this.vy*=.99;this.life+=.002;
-    if(this.x<-10||this.x>innerWidth+10||this.y<-10||this.y>innerHeight+10||this.life>this.maxLife)this.reset();
+    if(this.x<-10||this.x>W+10||this.y<-10||this.y>H+10||this.life>this.maxLife)this.reset();
   }
   draw(){
     const al=Math.sin((this.life/this.maxLife)*Math.PI)*.45;
-    ctx.globalAlpha=al;ctx.fillStyle=this.color;ctx.shadowBlur=7;ctx.shadowColor=this.color;
+    ctx.globalAlpha=al;ctx.fillStyle=this.color;
     ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill();
   }
 }
-const tunnel=Array.from({length:90},()=>new P());
-const ambient=Array.from({length:110},()=>new A());
-function drawGrid(){
-  const p=Math.min(scrollY/(document.body.scrollHeight-innerHeight),1);
-  ctx.globalAlpha=.022+p*.022;ctx.strokeStyle='#6d28d9';ctx.lineWidth=.5;ctx.shadowBlur=0;
-  for(let x=0;x<canvas.width;x+=70){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
-  for(let y=0;y<canvas.height;y+=70){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
-}
-(function loop(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);ctx.shadowBlur=0;
-  drawGrid();
-  ambient.forEach(p=>{p.update();p.draw();});
-  tunnel.forEach(p=>{p.update();p.draw();});
-  ctx.globalAlpha=1;ctx.shadowBlur=0;
+const tunnel=Array.from({length:50},()=>new P());
+const ambient=Array.from({length:60},()=>new A());
+function loop(){
+  if(!document.hidden){
+    ctx.clearRect(0,0,W,H);
+    ctx.globalAlpha=.03+scrollP*.02;ctx.drawImage(gridCanvas,0,0);ctx.globalAlpha=1;
+    ambient.forEach(p=>{p.update();p.draw();});
+    tunnel.forEach(p=>{p.update();p.draw();});
+    ctx.globalAlpha=1;
+  }
   requestAnimationFrame(loop);
-})();
+}
+if(!REDUCED) requestAnimationFrame(loop);
 
 // ── TERMINAL DEMO ANIMATION ──
 const demoSection=document.querySelector('.demo-section');
@@ -708,28 +722,45 @@ if(termEl&&'IntersectionObserver' in window){
   targets.forEach(t=>{t.classList.add('reveal');ro.observe(t);});
 })();
 
+// Pointer-driven flourishes (spotlight, card tilt) — desktop only, and rAF-throttled so a
+// fast mouse can't queue more style writes than the browser can paint.
+const FINE_POINTER=window.matchMedia&&window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+const NO_MOTION=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
 // Hero spotlight — soft light follows the cursor (Aceternity-style), dependency-free.
-(()=>{
+if(FINE_POINTER)(()=>{
   const hero=document.querySelector('.hero'), spot=document.getElementById('heroSpot');
   if(!hero||!spot) return;
+  let px=0,py=0,queued=false;
   hero.addEventListener('pointermove',e=>{
     const r=hero.getBoundingClientRect();
-    spot.style.setProperty('--hx',((e.clientX-r.left)/r.width*100).toFixed(1)+'%');
-    spot.style.setProperty('--hy',((e.clientY-r.top)/r.height*100).toFixed(1)+'%');
-  });
+    px=(e.clientX-r.left)/r.width*100; py=(e.clientY-r.top)/r.height*100;
+    if(queued) return;
+    queued=true;
+    requestAnimationFrame(()=>{
+      spot.style.setProperty('--hx',px.toFixed(1)+'%');
+      spot.style.setProperty('--hy',py.toFixed(1)+'%');
+      queued=false;
+    });
+  },{passive:true});
 })();
 
 // Card 3D-tilt on the step cards (Aceternity-style), pauses the idle float while hovering.
-(()=>{
-  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+if(FINE_POINTER&&!NO_MOTION)(()=>{
   document.querySelectorAll('.steps .step').forEach(card=>{
+    let px=0,py=0,queued=false;
     card.addEventListener('pointermove',e=>{
       const r=card.getBoundingClientRect();
-      const px=(e.clientX-r.left)/r.width-.5, py=(e.clientY-r.top)/r.height-.5;
-      card.style.animation='none';
-      card.style.transition='transform .08s ease-out,border-color .3s';
-      card.style.transform=`perspective(900px) rotateY(${(px*9).toFixed(2)}deg) rotateX(${(-py*9).toFixed(2)}deg) translateY(-6px) scale(1.03)`;
-    });
+      px=(e.clientX-r.left)/r.width-.5; py=(e.clientY-r.top)/r.height-.5;
+      if(queued) return;
+      queued=true;
+      requestAnimationFrame(()=>{
+        card.style.animation='none';
+        card.style.transition='transform .08s ease-out,border-color .3s';
+        card.style.transform=`perspective(900px) rotateY(${(px*9).toFixed(2)}deg) rotateX(${(-py*9).toFixed(2)}deg) translateY(-6px) scale(1.03)`;
+        queued=false;
+      });
+    },{passive:true});
     card.addEventListener('pointerleave',()=>{
       card.style.transition='transform .45s ease,border-color .3s';
       card.style.transform='';
