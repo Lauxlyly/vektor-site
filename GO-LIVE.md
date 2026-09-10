@@ -18,6 +18,7 @@ Vercel → vektor-site → Settings → Environment Variables. After adding/chan
 | `OWNER_EMAIL` | payment/report copy to you | defaults to laurin85@gmail.com |
 | `SUPADATA_API_KEY` | video/reel transcripts | should already be set |
 | `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | rate limiting (optional) | free Upstash Redis DB; without it, limiter is a no-op |
+| `VEKTOR_ADMIN_KEY` | `api/backtest.js` (real data-backed falsification runs) | optional; without it the endpoint stays disabled (503). Pick a long random value, send it as `x-vektor-admin-key` when calling the endpoint. Never expose this key client-side. |
 
 ---
 

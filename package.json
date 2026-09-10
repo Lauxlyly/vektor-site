@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "node test/security.test.js && node test/extract.test.js && node test/contrast.test.js && node test/page-guardrails.test.js",
+    "test": "node test/security.test.js && node test/extract.test.js && node test/contrast.test.js && node test/page-guardrails.test.js && node test/census-engine.test.js && node test/census-market-data.test.js && node test/census-backtest-api.test.js",
     "test:e2e": "playwright test",
     "check:publish": "node scripts/check-publishable.js"
   },

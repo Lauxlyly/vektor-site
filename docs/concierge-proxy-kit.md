@@ -37,9 +37,37 @@ If not → deliver the normal qualitative review; the honest note is that the st
 
 ## Step 3 — Run + record
 
-- Run the census framework on the mechanized ruleset over the standard universe/window.
+**Now automated** (was: run crypto-bot locally by hand). `api/backtest.js` runs the
+same methodology — real Binance data, no-lookahead replay, dual-null, triple-cost —
+directly from the ruleset. It is admin-key-gated (`x-vektor-admin-key`), so mechanizability
+judgment (Step 1) and ruleset authorship (Step 2) still happen by hand; this only automates
+the compute. Call it once the ruleset is written:
+
+```
+POST /api/backtest
+x-vektor-admin-key: <VEKTOR_ADMIN_KEY>
+{
+  "ruleset": {
+    "entry": [{ "type": "rsi_below", "period": 14, "value": 30 }],
+    "stop_pct": 0.02, "take_profit_pct": 0.04, "max_hold_bars": 24, "seed": 42
+  },
+  "universe": ["BTCUSDT", "ETHUSDT"],
+  "interval": "1h",
+  "start": "2023-01-01", "end": "2024-06-01"
+}
+```
+
+The response's `block` field is the exact markdown for Step 4 below — paste it straight
+into the report. See `lib/census/engine.js` for the supported condition vocabulary
+(`price_above_sma`, `sma_cross_above/below`, `rsi_below/above`, `weekday_in`, `hour_in`,
+`always`) and `README.md` for the endpoint's design notes.
+
 - Capture: net expectancy/trade, N OOS setups, both null comparisons, OOS window count.
-- Append to the ledger (append-only; never edit a prior pre-registration).
+- Append to the ledger (append-only; never edit a prior pre-registration) — the API
+  response's `metrics` field has the full numbers at 1x/2x/3x cost for all three
+  (real / random-entry-null / wrong-sign-null) to paste in.
+- Fallback: the original crypto-bot census framework still works standalone if a
+  strategy needs a condition type `lib/census/engine.js` doesn't support yet.
 
 ## Step 4 — Paste this block into the report
 
