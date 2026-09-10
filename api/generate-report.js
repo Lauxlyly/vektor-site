@@ -155,17 +155,24 @@ module.exports = async function handler(req, res) {
   let report;
   try {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const msg = await anthropic.messages.create({
-      model: 'claude-opus-5',
-      max_tokens: 4096,
-      // Opus 5 rejects temperature/top_p/top_k outright (400) - removed, no equivalent needed.
-      // Thinking is on by default on Opus 5 and shares max_tokens with the answer; this is a
-      // single-shot classification task (no tools), so thinking is disabled for predictable
-      // token budget and latency under the 60s Vercel function timeout.
+    // Sonnet 5, not Opus 5. This runs inside a 60s Vercel function; Opus 5 (adaptive
+    // thinking on by default) routinely ran past 60s on a full 10-check report and the
+    // buyer got an opaque platform timeout. Sonnet 5 is 2-3x faster, cheaper, and easily
+    // strong enough for a structured red-team.
+    //  - thinking disabled + effort low: single-shot JSON, no tools -> terse and fast
+    //  - streaming + 55s client timeout: finishes well under Vercel's 60s, and a slow run
+    //    aborts as a catchable error (clean JSON 500) instead of a platform timeout
+    //  - no temperature: the 4.7+ family (incl. Sonnet 5) rejects sampling params with 400
+    const stream = anthropic.messages.stream({
+      model: 'claude-sonnet-5',
+      max_tokens: 8000,
       thinking: { type: 'disabled' },
+      output_config: { effort: 'low' },
       messages: [{ role: 'user', content: REPORT_PROMPT(cleanStrategy) }],
-    });
-    const raw = msg.content[0].text.trim();
+    }, { timeout: 55_000 });
+    const msg = await stream.finalMessage();
+    const textBlock = msg.content.find((b) => b.type === 'text');
+    const raw = (textBlock ? textBlock.text : '').trim();
     const match = raw.match(/\{[\s\S]*\}/);
     report = match ? JSON.parse(match[0]) : null;
     if (!report) throw new Error('Invalid JSON from model');
