@@ -129,7 +129,7 @@ body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
       <div class="confirm-check">✓</div>
       <div class="confirm-text">Payment confirmed.</div>
     </div>
-    <div class="loading-sub">Running your full 6-test audit now...</div>
+    <div class="loading-sub">Running your full 10-test audit now...</div>
     <div class="terminal">
       <div class="tl" id="tl0"># VEKTOR full audit initialising...</div>
       <div class="tl" id="tl1">▶ verifying payment...</div>
@@ -140,7 +140,11 @@ body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
       <div class="tl" id="tl6">▶ permuted-timing null...</div>
       <div class="tl" id="tl7">▶ walk-forward out-of-sample test...</div>
       <div class="tl" id="tl8">▶ multiple-testing correction...</div>
-      <div class="tl" id="tl9">▶ compiling verdict...</div>
+      <div class="tl" id="tl9">▶ mean / median skew check...</div>
+      <div class="tl" id="tl10">▶ exit feasibility check...</div>
+      <div class="tl" id="tl11">▶ source concentration check...</div>
+      <div class="tl" id="tl12">▶ capital-clustering check...</div>
+      <div class="tl" id="tl13">▶ compiling verdict...</div>
     </div>
     <div style="margin:16px auto 0;max-width:520px;height:6px;background:rgba(124,58,237,.14);border-radius:100px;overflow:hidden;"><div id="genBar" style="height:100%;width:0;background:linear-gradient(90deg,#7c3aed,#60a5fa);transition:width .4s ease;box-shadow:0 0 12px rgba(124,58,237,.6);"></div></div>
     <div id="genPct" style="margin-top:9px;font-family:monospace;font-size:12px;color:#94a3b8;">0% · initialising…</div>
@@ -177,10 +181,10 @@ body{background:#050508;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
       <div class="ri-body">You submitted a <b>description</b>, so this is an expert <b>qualitative red-team</b>: your verdict and reasoning above are based on the strategy's design itself. Each check below shows what we assessed and exactly which data would let us <b>compute</b> the statistical version. That distinction is the point — we never label an opinion as a completed test.</div>
     </div>
 
-    <!-- 6 failure-mode checks -->
+    <!-- 10 failure-mode checks -->
     <div class="section">
       <div class="section-header">
-        <div class="section-title">Falsification Review — 6 Failure-Mode Checks</div>
+        <div class="section-title">Falsification Review — 10 Failure-Mode Checks</div>
         <div class="section-sub">A structured red-team of the ways this strategy could be fooling you. Checks share a common root cause and are not statistically independent. PASS / FAIL / MARGINAL appear only when a check ran on real data.</div>
       </div>
       <div class="section-body" id="testsBody"></div>
@@ -241,7 +245,7 @@ let _strategy = '';
 
 // Terminal line animation
 function animateTerminal(activeIdx) {
-  for (let i = 0; i <= 9; i++) {
+  for (let i = 0; i <= 13; i++) {
     const el = document.getElementById('tl' + i);
     if (i < activeIdx) { el.classList.add('on', 'done'); el.classList.remove('active'); }
     else if (i === activeIdx) { el.classList.add('on', 'active'); el.classList.remove('done'); }
@@ -368,10 +372,10 @@ async function fetchReport(strategy) {
   const MIN_MS = 20000 + Math.floor(Math.random() * 4000);
   const startT = Date.now();
   const bar = document.getElementById('genBar'), pct = document.getElementById('genPct');
-  const stages = ['verifying payment…','loading strategy…','look-ahead & leakage scan…','cost & slippage stress (3× fees)…','random-entry null comparison…','permuted-timing null…','walk-forward out-of-sample…','multiple-testing correction…','compiling verdict…'];
+  const stages = ['verifying payment…','loading strategy…','look-ahead & leakage scan…','cost & slippage stress (3× fees)…','random-entry null comparison…','permuted-timing null…','walk-forward out-of-sample…','multiple-testing correction…','mean / median skew check…','exit feasibility check…','source concentration check…','capital-clustering check…','compiling verdict…'];
   let step = 0;
   animateTerminal(0);
-  const stepTimer = setInterval(() => { if (step < 9) animateTerminal(++step); }, MIN_MS / 10);
+  const stepTimer = setInterval(() => { if (step < 13) animateTerminal(++step); }, MIN_MS / 14);
   const prog = setInterval(() => {
     const el = Date.now() - startT, p = Math.min(92, Math.round(el / MIN_MS * 92));
     if (bar) bar.style.width = p + '%';
@@ -392,7 +396,7 @@ async function fetchReport(strategy) {
 
   const [res] = await Promise.all([fetchP, new Promise(r => setTimeout(r, MIN_MS))]);
   clearInterval(stepTimer); clearInterval(prog);
-  animateTerminal(9);
+  animateTerminal(13);
   if (bar) bar.style.width = '100%';
   if (pct) pct.textContent = '100% · complete';
 
@@ -517,8 +521,8 @@ function buildPdf(jsPDFCtor) {
   for (const ln of summaryLines) { doc.text(ln, PW / 2, sy, { align: 'center' }); sy += 5; }
   y += bannerH + 10;
 
-  // ── 6 failure-mode checks ──
-  sectionLabel('Falsification Review — 6 Failure-Mode Checks');
+  // ── 10 failure-mode checks ──
+  sectionLabel('Falsification Review — 10 Failure-Mode Checks');
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(GREY[0], GREY[1], GREY[2]);
   const subLines = doc.splitTextToSize('You submitted a description, so this is an expert qualitative red-team. Checks share a common root cause and are not statistically independent. PASS/FAIL/MARGINAL appear only when a check ran on real data; NEEDS DATA means it needs a ruleset/trade data to compute.', CW);
   for (const ln of subLines) { need(4); doc.text(ln, M, y); y += 4; }

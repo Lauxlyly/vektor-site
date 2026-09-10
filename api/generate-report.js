@@ -41,6 +41,7 @@ You did NOT run any computation. You have no data feed, no backtest engine, no t
 - Do NOT assert trade direction (long/short, "profits in uptrends") unless the submission specifies it.
 - Only reference a "3× cost & slippage stress" if base fees were given and multiplied; otherwise it is NEEDS DATA — no fee baseline available.
 - Never invent p-values, Sharpe ratios, drawdowns, or trade counts.
+- Do not include internal or system XML tags (e.g. thinking tags) in your response.
 - The text may be a raw auto-transcription. Read numbers/ratios charitably: spoken "one to four" often lands as "104" or "1:04" and almost always means a 1:4 risk-reward. Interpret the intended meaning, note if a figure is genuinely ambiguous, and never propagate an obvious transcription typo as if it were the trader's stated value.
 
 # EDGE-SOURCE & COUNTERPARTY (a qualitative read available from a description)
@@ -59,7 +60,11 @@ Exit Feasibility Check: For illiquid, thin, latency-sensitive, copy-trading, or 
 
 Source Concentration Check: For copy-trading, KOL, wallet-following, signal-following, or any claimed multi-source strategy, require the number of genuinely independent sources and the share of events from the largest few. Do NOT apply to unrelated single-instrument strategies.
 
-Surfacing: emit these as the last three entries of tests[] using exactly the names above. When a guard is not relevant to the submitted strategy type, still emit it with result "NEEDS DATA" and a one-line finding saying why it does not apply — never silently omit an entry. Never present any of them as a computed result.
+Capital-Clustering / Concurrent-Position Check: For strategies whose entries are triggered by regimes, breakouts, volatility spikes, momentum/trend conditions, liquidations, or other market-state events that can plausibly re-fire before earlier positions have exited, require trigger dates, exit dates, holding-period logic, position-sizing rules, max concurrent positions, gross/net exposure caps, and portfolio-level NAV accounting. The risk is that a sequential trade chain can silently give each clustered signal fresh full capital instead of sharing one capped capital pool. Do NOT claim overlap was measured unless dates were supplied. Do NOT apply this to one-position-at-a-time systems, fixed calendar rebalances with explicit portfolio weights, or strategies with explicit capped gross/net exposure. Missing capital-pool detail is NEEDS DATA / REWORK, not a computed failure.
+
+Surfacing: emit these as the last four entries of tests[] using exactly the names above. When a guard is not relevant to the submitted strategy type, still emit it with result "NEEDS DATA" and a one-line finding saying why it does not apply — never silently omit an entry. Never present any of them as a computed result.
+
+Multiple-Testing / Selection-Bias Check (finding guidance): In addition to asking for the number of variants tried and whether selection was pre-registered, if the submission mentions a permutation or bootstrap null test alongside a stated variant count, require the number of null draws and compare the minimum achievable honest p-value, approximately 1/(draws + 1), with the corrected significance bar such as alpha / variants. If the draw count is too small to ever clear the corrected bar, state that the null test is underpowered for the claimed correction. Do not invent the variant count, alpha, or draw count; if any are missing, ask for them.
 
 Return ONLY a valid JSON object — no markdown, no extra text:
 {
@@ -81,13 +86,13 @@ Return ONLY a valid JSON object — no markdown, no extra text:
     { "name": "Multiple-Testing / Selection-Bias Check", "result": "...", "result_color": "...", "finding": "..." },
     { "name": "Mean / Median Skew Check", "result": "...", "result_color": "...", "finding": "..." },
     { "name": "Exit Feasibility Check", "result": "...", "result_color": "...", "finding": "..." },
-    { "name": "Source Concentration Check", "result": "...", "result_color": "...", "finding": "..." }
+    { "name": "Source Concentration Check", "result": "...", "result_color": "...", "finding": "..." },
+    { "name": "Capital-Clustering / Concurrent-Position Check", "result": "...", "result_color": "...", "finding": "..." }
   ],
   "what_would_change_verdict": [
-    "A zero-latency, zero-cost best-case backtest first, keeping every event (no dropped/unfillable trades): if the strategy fails at lag 0 with no fees, slippage, or latency, every realistic downstream variant is dominated and the test is finished in an afternoon.",
-    "Concrete input that would let this be genuinely tested (e.g. a formal ruleset with entry/exit/sizing, plus a trade log or backtest with dates).",
-    "A second concrete, correctly-specified requirement (correct metrics for the strategy type — e.g. probability of ruin before target, expected log-growth, terminal-wealth distribution — not just Sharpe for an extreme-skew system).",
-    "A third: full track-record disclosure needed to rule out survivorship/selection bias (number of blown accounts, total capital deposited, withdrawals)."
+    "The first, cheapest step: a zero-latency, zero-cost best-case backtest that keeps every event (no dropped/unfillable trades). If the strategy fails at lag 0 with no fees, slippage, or latency, every realistic downstream variant is dominated and the question is settled in an afternoon.",
+    "The second: a formal, testable ruleset (entry/exit/sizing) plus a trade log or backtest with dates — evaluated on the correct metrics for the strategy type (e.g. probability of ruin before target, expected log-growth, terminal-wealth distribution for an extreme-skew system — not just Sharpe).",
+    "The third: full track-record disclosure to rule out survivorship/selection bias (number of blown accounts, total capital deposited, withdrawals)."
   ],
   "bottom_line": "One plain-language sentence: the honest verdict a non-technical reader should walk away with."
 }
@@ -151,9 +156,13 @@ module.exports = async function handler(req, res) {
   try {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const msg = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 3000,
-      temperature: 0.2, // low → same strategy gives a consistent verdict/report on repeat runs
+      model: 'claude-opus-5',
+      max_tokens: 4096,
+      // Opus 5 rejects temperature/top_p/top_k outright (400) - removed, no equivalent needed.
+      // Thinking is on by default on Opus 5 and shares max_tokens with the answer; this is a
+      // single-shot classification task (no tools), so thinking is disabled for predictable
+      // token budget and latency under the 60s Vercel function timeout.
+      thinking: { type: 'disabled' },
       messages: [{ role: 'user', content: REPORT_PROMPT(cleanStrategy) }],
     });
     const raw = msg.content[0].text.trim();
