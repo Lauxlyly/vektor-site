@@ -1082,8 +1082,53 @@ async function runAnalysis(){
   document.getElementById('resultBox').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
+// Strategy handoff to success.html — resilient against a multi-tab localStorage race.
+//
+// Root cause of the "We couldn't find your strategy" false-empty bug: a single shared
+// localStorage key (plain 'vektor_strategy') is scoped to the ORIGIN, not the tab. If a
+// user has more than one VEKTOR tab open (e.g. testing several different videos in one
+// session — common for this site), a DIFFERENT tab's success.html clearing that key the
+// moment ITS OWN report finished generating would silently wipe it out from under a
+// checkout that was still in flight in another tab.
+//
+// Fix: sessionStorage is now the primary handoff channel — it is private to this tab and
+// cannot be touched by any other tab, and the Payment Link (see #fullAuditBtn — no
+// target="_blank") navigates this SAME tab to Stripe and back via a full-page navigation,
+// which sessionStorage survives. A uniquely-keyed localStorage entry is layered underneath
+// as a defense-in-depth fallback (covers Stripe being opened in a genuinely new tab, or a
+// browser that clears sessionStorage), with a "latest" pointer so success.html can find it,
+// and a prune pass so old entries don't accumulate forever. The old flat key is still
+// written too, purely so a checkout already in flight on an old, cached copy of this page
+// (loaded before this fix shipped) still hands off correctly to a freshly-deployed
+// success.html.
+const STRAT_V2_PREFIX = 'vektor_strategy_v2_';
+const STRAT_V2_LATEST = 'vektor_strategy_v2_latest';
+const STRAT_MAX_AGE_MS = 48 * 60 * 60 * 1000; // matches success.html's "links work for 48h" copy
+
+function pruneOldStrategyEntries(){
+  try{
+    const now = Date.now();
+    for(let i = localStorage.length - 1; i >= 0; i--){
+      const k = localStorage.key(i);
+      if(!k || !k.startsWith(STRAT_V2_PREFIX) || k === STRAT_V2_LATEST) continue;
+      try{
+        const rec = JSON.parse(localStorage.getItem(k) || 'null');
+        if(!rec || !rec.ts || (now - rec.ts) > STRAT_MAX_AGE_MS) localStorage.removeItem(k);
+      }catch(_){ localStorage.removeItem(k); }
+    }
+  }catch(_){}
+}
+
 function saveStrategyBeforeCheckout(){
-  if(_lastStrategy) localStorage.setItem('vektor_strategy',_lastStrategy);
+  if(!_lastStrategy) return;
+  try{ sessionStorage.setItem('vektor_strategy_session', _lastStrategy); }catch(_){}
+  try{
+    pruneOldStrategyEntries();
+    const id = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    localStorage.setItem(STRAT_V2_PREFIX + id, JSON.stringify({ ts: Date.now(), text: _lastStrategy }));
+    localStorage.setItem(STRAT_V2_LATEST, id);
+  }catch(_){}
+  try{ localStorage.setItem('vektor_strategy', _lastStrategy); }catch(_){}
 }
 
 // Gate checkout on the EU immediate-performance / withdrawal-waiver consent (must be

@@ -164,8 +164,8 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
 
   <!-- STRATEGY FALLBACK (if localStorage empty) -->
   <div id="stateInput" hidden>
-    <h2>One more step.</h2>
-    <p>We couldn't find your strategy. Paste it below to generate your report:</p>
+    <h2>Payment confirmed. One more step.</h2>
+    <p>Your payment went through fine — we just couldn't find the strategy text on this device (this can happen with more than one VEKTOR tab open, or in a private/incognito window). Paste it below and we'll generate your report right now:</p>
     <div style="text-align:left;max-width:480px;margin:0 auto;">
       <textarea id="strategyFallback" placeholder="Describe the strategy you submitted..."></textarea>
     </div>
@@ -260,6 +260,55 @@ const params = new URLSearchParams(window.location.search);
 const SESSION_ID = params.get('session_id') || '';
 let _report = null;
 let _strategy = '';
+let _handoff = null;
+
+// Strategy handoff from index.html — see saveStrategyBeforeCheckout() there for the full
+// explanation. Short version: a single shared localStorage key could be wiped by a
+// DIFFERENT browser tab's success.html clearing it the moment that tab's own report
+// finished. Reads are tried in order: this tab's own sessionStorage (immune to every other
+// tab), a not-yet-expired per-attempt localStorage entry via the "latest" pointer, then the
+// old flat key for backward compatibility. Returns {text, source[, id]} or null.
+const STRAT_V2_PREFIX = 'vektor_strategy_v2_';
+const STRAT_V2_LATEST = 'vektor_strategy_v2_latest';
+const STRAT_MAX_AGE_MS = 48 * 60 * 60 * 1000;
+
+function readHandoffStrategy(){
+  try{
+    const s = (sessionStorage.getItem('vektor_strategy_session') || '').trim();
+    if(s.length >= 10) return { text: s, source: 'session' };
+  }catch(_){}
+  try{
+    const id = localStorage.getItem(STRAT_V2_LATEST);
+    if(id){
+      const raw = localStorage.getItem(STRAT_V2_PREFIX + id);
+      if(raw){
+        const rec = JSON.parse(raw);
+        const text = ((rec && rec.text) || '').trim();
+        if(text.length >= 10 && rec.ts && (Date.now() - rec.ts) <= STRAT_MAX_AGE_MS){
+          return { text, source: 'v2', id };
+        }
+      }
+    }
+  }catch(_){}
+  try{
+    const s = (localStorage.getItem('vektor_strategy') || '').trim();
+    if(s.length >= 10) return { text: s, source: 'legacy' };
+  }catch(_){}
+  return null;
+}
+
+// Only clears the specific entry this tab actually used — never sweeps every v2 entry or
+// blindly bumps the "latest" pointer, so a concurrent write from another tab is left alone.
+function clearHandoffStrategy(handoff){
+  try{ sessionStorage.removeItem('vektor_strategy_session'); }catch(_){}
+  try{
+    if(handoff && handoff.source === 'v2' && handoff.id){
+      localStorage.removeItem(STRAT_V2_PREFIX + handoff.id);
+      if(localStorage.getItem(STRAT_V2_LATEST) === handoff.id) localStorage.removeItem(STRAT_V2_LATEST);
+    }
+  }catch(_){}
+  try{ localStorage.removeItem('vektor_strategy'); }catch(_){}
+}
 
 // Terminal line animation
 function animateTerminal(activeIdx) {
@@ -506,7 +555,7 @@ async function fetchReport(strategy) {
     showErrFailed((res.data && res.data.code) || '_default');
     return;
   }
-  localStorage.removeItem('vektor_strategy'); // only clear once we actually have a report
+  clearHandoffStrategy(_handoff); // only clear once we actually have a report
   setTimeout(() => renderReport(res.data.report), 500);
 }
 
@@ -742,16 +791,17 @@ function copyVerdict() {
     showErrFailed('invalid_request');
     return;
   }
-  const strategy = localStorage.getItem('vektor_strategy') || '';
-  if (strategy.trim().length < 10) {
+  const handoff = readHandoffStrategy();
+  if (!handoff) {
     show('stateInput');
     return;
   }
-  // Keep the strategy in localStorage until we KNOW generation succeeded — it's the
+  _handoff = handoff;
+  // Keep the strategy in storage until we KNOW generation succeeded — it's the
   // only way to retry a failed report (reload this page) without re-typing the
   // strategy. Clearing it unconditionally here, before the fetch even started, was a
   // bug: every reload, success or failure, permanently lost it.
-  fetchReport(strategy);
+  fetchReport(handoff.text);
 })();
 </script>
 </body>
