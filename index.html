@@ -792,7 +792,14 @@ let _lastStrategy='', _lastLabel='', _lastFlags=[], _lastFinding='';
 // Escape untrusted (LLM-generated) text before putting it in innerHTML
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 
-// Pull strategy text from a pasted social/media link
+// Pull strategy text from a pasted social/media link.
+//
+// Two-phase: /api/extract only KICKS OFF a cold AI transcription (it used to poll
+// internally until done or ~40s, racing the server function's own duration limit — a
+// job that ran a bit long silently fell back to a short caption). Now, when Supadata
+// hands back an async job, this polls /api/extract-status every few seconds instead —
+// each check is fast, so the wait is bounded only by how long the user is willing to
+// stay on the page, not by any single request's timeout.
 async function fetchFromUrl(){
   const url=document.getElementById('urlInput').value.trim();
   const status=document.getElementById('urlStatus');
@@ -805,58 +812,89 @@ async function fetchFromUrl(){
   btn.disabled=true; const orig=btn.textContent; btn.textContent='…';
   status.className='url-status load';
 
-  // Live progress so a slow (cold) transcription never looks like a crash.
   const prog=document.getElementById('urlProg'), bar=document.getElementById('urlBar');
-  const EST=48000, t0=Date.now();
-  if(prog) prog.style.display='block';
-  const stages=['fetching the video…','extracting audio…','transcribing speech…','cleaning up the text…','almost there…'];
+  const t0=Date.now();
+  if(prog){ prog.style.display='block'; bar.style.width='4%'; }
   status.textContent='0% · fetching the video…';
-  const tick=setInterval(()=>{
-    const el=Date.now()-t0, p=Math.min(92,Math.round(el/EST*92));
-    if(bar) bar.style.width=p+'%';
-    status.textContent=p+'% · '+stages[Math.min(stages.length-1,Math.floor(el/EST*stages.length))];
-  },400);
 
-  // Client-side timeout so a slow transcription never hangs the button forever.
-  const ctrl=new AbortController();
-  const timer=setTimeout(()=>ctrl.abort(),90000);
-  try{
-    const resp=await fetch('/api/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:ctrl.signal});
-    // The server may return a non-JSON error page (e.g. a gateway timeout); read defensively.
-    const raw=await resp.text();
-    let data={}; try{ data=JSON.parse(raw); }catch(_){ data={}; }
-    clearInterval(tick);
-    if(!resp.ok){
-      if(bar) bar.style.width='0%'; if(prog) prog.style.display='none';
-      status.className='url-status err';
-      status.textContent=data.error||'That link took too long or couldn’t be read. Try again, or paste the text manually.';
-      return;
-    }
+  function showResult(data){
     if(bar) bar.style.width='100%';
     const ta=document.getElementById('strategyInput');
     ta.value = ta.value.trim() ? (ta.value.trim()+'\n\n'+data.text) : data.text;
     ta.focus();
-    // Cold transcriptions sometimes fall back to a short caption on the first try (the
-    // AI speech-to-text job didn't finish in time); a retry a bit later usually returns
-    // the full spoken transcript once it's ready. This is NOT the same quality of input,
-    // so it gets its own persistent warning state — never the same "✓ ok" green as a real
-    // transcript, and it doesn't auto-hide, so it can't be missed by someone who glances
-    // past the status line.
+    // Cold transcriptions can still end in a short caption (if Supadata itself fails the
+    // job, not just times out). This is NOT the same quality of input, so it gets its own
+    // persistent warning state — never the same "✓ ok" green as a real transcript, and it
+    // doesn't auto-hide, so it can't be missed by someone who glances past the status line.
     const isCaption = data.source==='caption';
     status.className='url-status '+(isCaption?'warn':'ok');
     status.textContent = isCaption
-      ? '⚠ Only a short caption was found — not the full spoken transcript. The analysis below will be based on less detail. Click Fetch again in a moment for the full transcript, or edit the text yourself before analyzing.'
+      ? '⚠ Only a short caption was found — not the full spoken transcript. The analysis below will be based on less detail. Edit the text yourself, or click Fetch again to retry transcription.'
       : '✓ '+(data.note||'Text imported.')+' Review and edit below, then Analyze.';
     setTimeout(()=>{ if(prog) prog.style.display='none'; }, isCaption?2800:1400);
+  }
+  function showError(msg){
+    if(bar) bar.style.width='0%'; if(prog) prog.style.display='none';
+    status.className='url-status err';
+    status.textContent=msg;
+  }
+
+  // Poll /api/extract-status until the job completes, fails, or we give up. Generous
+  // budget — a cold speech-to-text job can genuinely take a minute or more, and every
+  // individual round trip here is quick, so waiting longer costs nothing but the user's
+  // patience (shown honestly via the progress text).
+  const OVERALL_MS=110000;
+  async function pollStatus(jobId, urlForFallback){
+    const stages=['transcribing speech…','still transcribing — cold videos can take a minute or two…','almost there…'];
+    while(Date.now()-t0<OVERALL_MS){
+      const el=Date.now()-t0, p=Math.min(96,Math.round(el/OVERALL_MS*96));
+      if(bar) bar.style.width=p+'%';
+      status.textContent=p+'% · '+stages[Math.min(stages.length-1,Math.floor(el/OVERALL_MS*stages.length))];
+      await new Promise(r=>setTimeout(r,3000));
+      try{
+        const resp=await fetch('/api/extract-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jobId,url:urlForFallback})});
+        const raw=await resp.text();
+        let data={}; try{ data=JSON.parse(raw); }catch(_){ data={}; }
+        if(!resp.ok){ showError(data.error||'Could not check transcription status. Please paste the text manually.'); return; }
+        if(data.status==='completed'){ showResult(data); return; }
+        // status 'processing' (or a transient hiccup we swallowed server-side) → keep polling
+      }catch(e){ /* transient network error — keep polling */ }
+    }
+    // Gave up client-side, but the job itself keeps running at Supadata regardless —
+    // a fresh Fetch shortly after usually lands on its now-completed/cached result.
+    if(prog) prog.style.display='none';
+    status.className='url-status warn';
+    status.textContent='⚠ Still transcribing after a while. Click Fetch again in a few seconds — it usually completes by then — or paste the text manually.';
+  }
+
+  // Client-side timeout on the KICK-OFF call only (Supadata can itself block up to ~50s
+  // here for a cold job it answers synchronously) — generous, but bounded, so a hung
+  // network request can't disable the button forever.
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),58000);
+  try{
+    const resp=await fetch('/api/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:ctrl.signal});
+    clearTimeout(timer);
+    // The server may return a non-JSON error page (e.g. a gateway timeout); read defensively.
+    const raw=await resp.text();
+    let data={}; try{ data=JSON.parse(raw); }catch(_){ data={}; }
+    if(!resp.ok){
+      showError(data.error||'That link took too long or couldn’t be read. Try again, or paste the text manually.');
+      return;
+    }
+    if(data.status==='processing'){
+      await pollStatus(data.jobId, url);
+      return;
+    }
+    showResult(data);
   }catch(e){
-    clearInterval(tick);
+    clearTimeout(timer);
     if(prog) prog.style.display='none';
     status.className='url-status err';
     status.textContent = e.name==='AbortError'
-      ? 'That video took too long to transcribe. Click Fetch again — the transcript is usually ready on the second try.'
+      ? 'That took too long to start. Click Fetch again — it usually goes through on the second try.'
       : 'Couldn’t reach the link service. Try again, or paste the text manually.';
   }finally{
-    clearTimeout(timer);
     btn.disabled=false; btn.textContent=orig;
   }
 }
