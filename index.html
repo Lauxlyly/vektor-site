@@ -817,6 +817,17 @@ async function fetchFromUrl(){
   if(prog){ prog.style.display='block'; bar.style.width='4%'; }
   status.textContent='0% · fetching the video…';
 
+  // Animate progress during the kick-off call itself — it can legitimately take up to
+  // ~40s for a cold video (Supadata answering synchronously), and a static "0%" the
+  // whole time reads as frozen/broken even when it's still genuinely working.
+  const KICKOFF_EST=42000;
+  const kickoffStages=['fetching the video…','extracting audio…','checking for a transcript…','almost there…'];
+  const kickoffTick=setInterval(()=>{
+    const el=Date.now()-t0, p=Math.min(94,Math.round(el/KICKOFF_EST*94));
+    if(bar) bar.style.width=p+'%';
+    status.textContent=p+'% · '+kickoffStages[Math.min(kickoffStages.length-1,Math.floor(el/KICKOFF_EST*kickoffStages.length))];
+  },400);
+
   function showResult(data){
     if(bar) bar.style.width='100%';
     const ta=document.getElementById('strategyInput');
@@ -870,30 +881,49 @@ async function fetchFromUrl(){
   // Client-side timeout on the KICK-OFF call only (Supadata can itself block up to ~50s
   // here for a cold job it answers synchronously) — generous, but bounded, so a hung
   // network request can't disable the button forever.
-  const ctrl=new AbortController();
-  const timer=setTimeout(()=>ctrl.abort(),58000);
+  async function kickOffOnce(){
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),58000);
+    try{
+      const resp=await fetch('/api/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:ctrl.signal});
+      // The server may return a non-JSON error page (e.g. a gateway timeout); read defensively.
+      const raw=await resp.text();
+      let data={}; try{ data=JSON.parse(raw); }catch(_){ data={}; }
+      return { ok:resp.ok, data };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   try{
-    const resp=await fetch('/api/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:ctrl.signal});
-    clearTimeout(timer);
-    // The server may return a non-JSON error page (e.g. a gateway timeout); read defensively.
-    const raw=await resp.text();
-    let data={}; try{ data=JSON.parse(raw); }catch(_){ data={}; }
-    if(!resp.ok){
-      showError(data.error||'That link took too long or couldn’t be read. Try again, or paste the text manually.');
+    let result;
+    try{
+      result = await kickOffOnce();
+    }catch(e){
+      // A real client-side timeout (58s) isn't worth silently doubling — surface it.
+      // Anything else (a dropped connection, a transient network hiccup) gets one
+      // quiet retry before we bother the user with an error.
+      if(e.name==='AbortError') throw e;
+      await new Promise(r=>setTimeout(r,1200));
+      result = await kickOffOnce();
+    }
+    clearInterval(kickoffTick);
+    if(!result.ok){
+      showError(result.data.error||'That link took too long or couldn’t be read. Try again, or paste the text manually.');
       return;
     }
-    if(data.status==='processing'){
-      await pollStatus(data.jobId, url);
+    if(result.data.status==='processing'){
+      await pollStatus(result.data.jobId, url);
       return;
     }
-    showResult(data);
+    showResult(result.data);
   }catch(e){
-    clearTimeout(timer);
+    clearInterval(kickoffTick);
     if(prog) prog.style.display='none';
     status.className='url-status err';
     status.textContent = e.name==='AbortError'
       ? 'That took too long to start. Click Fetch again — it usually goes through on the second try.'
-      : 'Couldn’t reach the link service. Try again, or paste the text manually.';
+      : 'Couldn’t reach the link service after two tries. Try again, or paste the text manually.';
   }finally{
     btn.disabled=false; btn.textContent=orig;
   }
