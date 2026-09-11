@@ -239,13 +239,19 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
     <div class="note">Download your report above to keep it. A copy is also emailed to your checkout address.</div>
   </div>
 
-  <!-- ERROR STATE -->
+  <!-- ERROR STATE: three truthful states, keyed by the server's error `code` — see
+       showErrFailed() below. "The owner has been alerted" is only ever shown for the one
+       code where notifyOwnerFailure() was actually called server-side; every other
+       failure (network drop, expired session, payment check failure) says so honestly
+       instead of implying a recovery loop that isn't there. -->
   <div id="stateError" hidden>
-    <div class="error-icon">⚠️</div>
-    <h2>Something went wrong.</h2>
+    <div class="error-icon" id="errIcon">⚠️</div>
+    <h2 id="errHead">Something went wrong.</h2>
     <p id="errorMsg">We couldn't generate your report. If you were charged, contact us and we'll sort it out.</p>
+    <div class="note" id="errRef" style="margin-bottom:10px;"></div>
+    <button class="err-btn" id="errRetryBtn" onclick="location.reload()" style="cursor:pointer;margin-right:10px;">↻ Try again</button>
     <a class="err-btn" href="/">← Back to VEKTOR</a>
-    <div class="note" style="margin-top:20px;">Need help? Email laurin85@gmail.com</div>
+    <div class="note" id="errRefund" style="margin-top:20px;" hidden>Prefer not to wait? Email <a href="mailto:laurin85@gmail.com" style="color:#cabdfa;">laurin85@gmail.com</a> with your reference code and we'll refund without delay.</div>
   </div>
 </div>
 
@@ -268,6 +274,76 @@ function show(id) {
   ['stateLoading','stateInput','stateReport','stateError'].forEach(s => {
     document.getElementById(s).hidden = (s !== id);
   });
+}
+
+function _refCode() {
+  const d = new Date();
+  const ymd = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+  const tail = (SESSION_ID || '').replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase() || '????';
+  return 'VK-' + ymd + '-' + tail;
+}
+
+// Maps a server error `code` (or the client-only pseudo-code 'network') to the correct
+// truthful failure state. Only 'generation_failed_owner_alerted' may say "the owner has
+// been alerted" — that's the one path in generate-report.js that actually calls
+// notifyOwnerFailure(). Every other code is honest that nobody is automatically in the
+// loop yet, and tells the customer how to get a human involved.
+const ERR_STATES = {
+  generation_failed_owner_alerted: {
+    icon: '✓',
+    head: 'Payment confirmed. Your order is safe.',
+    body: "Your report didn't finish generating, but your payment is not lost and you have not been charged twice. The owner has been alerted and will deliver your report or offer a refund within 24 hours — usually the same day.",
+    refund: true,
+  },
+  network: {
+    icon: '⚠️',
+    head: 'Connection interrupted.',
+    body: 'We may not have received this request. Please try again — retrying this paid session is safe and will not charge you again.',
+    refund: false,
+  },
+  session_expired: {
+    icon: '⚠️',
+    head: 'This link has expired.',
+    body: 'Report links work for 48 hours after purchase. If you paid and the window closed before your report arrived, email us with your checkout email or the reference code below and we will sort it out.',
+    refund: false,
+  },
+  payment_verification_failed: {
+    icon: '⚠️',
+    head: "We couldn't confirm your payment.",
+    body: 'If you were charged, email us with your checkout email or the reference code below and we will resolve it.',
+    refund: false,
+  },
+  invalid_request: {
+    icon: '⚠️',
+    head: 'No payment session found.',
+    body: 'This page is reached automatically after checkout. If you paid and landed here without a session, email us with your checkout email and we will send your report.',
+    refund: false,
+  },
+  _default: {
+    icon: '⚠️',
+    head: 'Something went wrong.',
+    body: 'If you were charged, email us with your reference code below and we will sort it out.',
+    refund: false,
+  },
+};
+
+function showErrFailed(code) {
+  const s = ERR_STATES[code] || ERR_STATES._default;
+  const iconEl = document.getElementById('errIcon');
+  const headEl = document.getElementById('errHead');
+  const bodyEl = document.getElementById('errorMsg');
+  const refEl = document.getElementById('errRef');
+  const rfndEl = document.getElementById('errRefund');
+  const retryEl = document.getElementById('errRetryBtn');
+  if (iconEl) iconEl.textContent = s.icon;
+  if (headEl) headEl.textContent = s.head;
+  if (bodyEl) bodyEl.textContent = s.body;
+  if (refEl) refEl.textContent = SESSION_ID ? 'Reference: ' + _refCode() : '';
+  if (rfndEl) rfndEl.hidden = !s.refund;
+  // No point offering "try again" when there's no session to retry, or when the same
+  // 403 is guaranteed to recur (an expired link doesn't un-expire on reload).
+  if (retryEl) retryEl.hidden = (code === 'invalid_request' || code === 'session_expired');
+  show('stateError');
 }
 
 // Escape untrusted (LLM-generated) text before putting it in innerHTML
@@ -413,12 +489,12 @@ async function fetchReport(strategy) {
   if (pct) pct.textContent = '100% · complete';
 
   if (res.network) {
-    document.getElementById('errorMsg').textContent = 'Network error. Please try refreshing the page.';
-    show('stateError'); return;
+    showErrFailed('network');
+    return;
   }
   if (!res.ok) {
-    document.getElementById('errorMsg').textContent = (res.data && res.data.error) || 'Unknown error. Contact laurin85@gmail.com.';
-    show('stateError'); return;
+    showErrFailed((res.data && res.data.code) || '_default');
+    return;
   }
   localStorage.removeItem('vektor_strategy'); // only clear once we actually have a report
   setTimeout(() => renderReport(res.data.report), 500);
@@ -653,8 +729,7 @@ function copyVerdict() {
 // Init
 (function init() {
   if (!SESSION_ID) {
-    document.getElementById('errorMsg').textContent = 'No payment session found. If you paid, please contact laurin85@gmail.com.';
-    show('stateError');
+    showErrFailed('invalid_request');
     return;
   }
   const strategy = localStorage.getItem('vektor_strategy') || '';

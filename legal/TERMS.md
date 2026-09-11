@@ -77,7 +77,11 @@ Accordingly, before the audit starts, the purchase flow asks you to tick a box c
 
 **5.3 Exercising withdrawal (where it still applies).** Where the withdrawal right has not been validly waived, you may withdraw within **[PLACEHOLDER: 14]** days by contacting us at **[PLACEHOLDER: contact email]** with your purchase email. We will refund you within 14 days of being informed, using the same payment method, without undue delay.
 
-**5.4 Fairness / discretionary refunds.** Even where a refund is not legally required, we may, at our discretion, offer a refund or re-run — for example if a technical fault on our side prevented delivery of a report you paid for. To request this, contact **[PLACEHOLDER: contact email]**.
+**5.4 Failed delivery after payment.** If you pay for a Full Falsification Review but VEKTOR does not generate and deliver the report because of a technical fault, provider outage, payment-verification issue, or other failure on our side, you are entitled to either (a) a re-run of the Review at no additional charge, or (b) a full refund on request. Re-running generation for the same paid Stripe Checkout Session does not charge you again.
+
+We will normally try to complete and deliver the report first, because that is the service you purchased. If we cannot deliver it within 24 hours after we become aware of the failure, or if you prefer not to wait, contact **laurin85@gmail.com** with your purchase email or reference code and we will refund the payment without undue delay.
+
+This clause does not limit your statutory withdrawal rights where they have not been validly waived (see 5.2 — a waiver only takes effect once a report has actually been generated and delivered), or any other mandatory consumer rights.
 
 **5.5 Nothing here removes your mandatory rights.** These Terms do not exclude or limit any statutory consumer rights that cannot be excluded or limited under the mandatory law of your country of residence.
 

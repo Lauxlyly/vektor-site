@@ -159,18 +159,18 @@ module.exports = async function handler(req, res) {
 
   // Input validation / size caps (reject junk + oversized bodies early)
   if (typeof session_id !== 'string' || !/^cs_[a-zA-Z0-9_]{10,120}$/.test(session_id)) {
-    return res.status(400).json({ error: 'A valid Stripe session_id is required.' });
+    return res.status(400).json({ code: 'invalid_request', error: 'A valid Stripe session_id is required.' });
   }
   if (typeof strategy !== 'string' || strategy.trim().length < 10) {
-    return res.status(400).json({ error: 'strategy required' });
+    return res.status(400).json({ code: 'invalid_request', error: 'strategy required' });
   }
   if (strategy.length > 20000) {
-    return res.status(413).json({ error: 'Strategy text is too long.' });
+    return res.status(413).json({ code: 'invalid_request', error: 'Strategy text is too long.' });
   }
 
   // Verify payment via Stripe — the ONLY way to unlock a paid report.
   if (!process.env.STRIPE_SECRET_KEY) {
-    return res.status(503).json({ error: 'Payment verification not configured.' });
+    return res.status(503).json({ code: 'config_error', error: 'Payment verification not configured.' });
   }
   let customerEmail = null;
   const auditId = makeAuditId(session_id);
@@ -180,17 +180,17 @@ module.exports = async function handler(req, res) {
 
     // Must be a genuinely completed one-time payment on OUR account.
     if (session.mode !== 'payment' || session.payment_status !== 'paid') {
-      return res.status(403).json({ error: 'Payment not confirmed. Please complete checkout first.' });
+      return res.status(403).json({ code: 'payment_verification_failed', error: 'Payment not confirmed. Please complete checkout first.' });
     }
     // Reject tiny/foreign sessions (a real audit payment is ~$99).
     if (!session.amount_total || session.amount_total < 1000) {
-      return res.status(403).json({ error: 'Payment could not be validated for this product.' });
+      return res.status(403).json({ code: 'payment_verification_failed', error: 'Payment could not be validated for this product.' });
     }
     // Recency window: a session unlocks the report only for a limited time after
     // purchase. This bounds how long a leaked/reused session_id stays usable.
     const ageHours = (Date.now() / 1000 - (session.created || 0)) / 3600;
     if (session.created && ageHours > 48) {
-      return res.status(403).json({ error: 'This checkout link has expired. Contact laurin85@gmail.com to re-send your report.' });
+      return res.status(403).json({ code: 'session_expired', error: 'This checkout link has expired. Contact laurin85@gmail.com to re-send your report.' });
     }
     customerEmail = session.customer_details && session.customer_details.email;
 
@@ -209,7 +209,7 @@ module.exports = async function handler(req, res) {
     });
   } catch (err) {
     console.error('Stripe error:', err.message);
-    return res.status(403).json({ error: 'Could not verify payment. If you paid, contact laurin85@gmail.com.' });
+    return res.status(403).json({ code: 'payment_verification_failed', error: 'Could not verify payment. If you paid, contact laurin85@gmail.com.' });
   }
 
   // Generate report
@@ -265,7 +265,10 @@ module.exports = async function handler(req, res) {
     console.error('generate-report error:', err.message);
     await saveOrder(session_id, { status: 'failed', error: err.message });
     await notifyOwnerFailure({ sessionId: session_id, auditId, email: customerEmail, strategy, stage: 'generation', error: err.message });
-    return res.status(500).json({ error: 'Report generation failed. Please try refreshing the page.' });
+    // code:'generation_failed_owner_alerted' is a promise, not a label — only ever send
+    // it on a path that actually just called notifyOwnerFailure above. success.html's
+    // error screen shows "the owner has been alerted" ONLY for this exact code.
+    return res.status(500).json({ code: 'generation_failed_owner_alerted', error: 'Report generation failed. Please try refreshing the page.' });
   }
 
   // Email the report to the customer + owner BEFORE sending the HTTP response.
