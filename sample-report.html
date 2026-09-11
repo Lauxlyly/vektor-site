@@ -6,80 +6,93 @@
 <title>VEKTOR Sample Audit — Pairs/Cointegration MR | STOP</title>
 <meta name="description" content="A real crypto strategy falsification report. Beta-hedged residual mean-reversion — verdict: STOP. Full methodology, reproducible results.">
 <style>
+  :root{
+    --bg:#050507;--surface:#0e0c17;--surface-3:#0a0916;
+    --ink:#f5f3fb;--ink-muted:#948fa8;
+    --accent-1:#8b5cf6;--accent-3:#5b3fd6;
+    --hairline:rgba(139,92,246,.16);--hairline-strong:rgba(139,92,246,.32);
+    --stop:#f87171;
+    --radius-sm:8px;--radius-md:11px;
+    --ease:cubic-bezier(.22,1,.36,1);
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    --mono:ui-monospace,'SF Mono','Cascadia Code','JetBrains Mono',Consolas,monospace;
+  }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: #0d0d14;
-    color: #d1d5db;
-    font-family: 'Georgia', 'Times New Roman', serif;
+    background: var(--bg);
+    color: #d8d3e6;
+    font-family: var(--sans);
     font-size: 17px;
-    line-height: 1.8;
+    line-height: 1.75;
     max-width: 720px;
     margin: 0 auto;
     padding: 48px 24px 80px;
+    -webkit-font-smoothing: antialiased;
   }
   nav {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 48px; padding-bottom: 20px;
-    border-bottom: 1px solid #1f2937;
-    font-family: 'Courier New', monospace; font-size: 13px;
+    border-bottom: 1px solid var(--hairline);
+    font-family: var(--mono); font-size: 13px;
   }
-  .logo { color:#c4b5fd; font-weight: 700; letter-spacing: 3px; }
-  .nav-back { color:#94a3b8; text-decoration: none; }
-  .nav-back:hover { color: #a78bfa; }
+  .logo { color: var(--ink); font-weight: 700; letter-spacing: 4px; }
+  .nav-back { color: var(--ink-muted); text-decoration: none; }
+  .nav-back:hover { color: #cabdfa; }
 
   .report-meta {
-    font-family: 'Courier New', monospace; font-size: 12px;
-    color:#94a3b8; letter-spacing: 1px; text-transform: uppercase;
+    font-family: var(--mono); font-size: 12px;
+    color: var(--ink-muted); letter-spacing: 1px; text-transform: uppercase;
     margin-bottom: 8px;
   }
   h1 {
-    font-size: clamp(24px, 4vw, 34px); color: #f9fafb; font-weight: 700;
-    line-height: 1.2; margin-bottom: 20px;
+    font-size: clamp(24px, 4vw, 34px); color: var(--ink); font-weight: 700;
+    line-height: 1.25; letter-spacing: -.4px; margin-bottom: 20px; text-wrap: balance;
   }
   .verdict-bar {
     display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
-    border-radius: 8px; padding: 16px 20px; margin: 28px 0;
+    background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.28);
+    border-radius: var(--radius-md); padding: 16px 20px; margin: 28px 0;
   }
-  .verdict-label { font-family: 'Courier New', monospace; font-size: 11px; color:#94a3b8; letter-spacing: 2px; text-transform: uppercase; }
-  .verdict-value { font-family: 'Courier New', monospace; font-size: 26px; font-weight: 900; color: #ef4444; letter-spacing: 4px; }
-  .verdict-desc { font-size: 14px; color: #9ca3af; }
+  .verdict-label { font-family: var(--mono); font-size: 11px; color: var(--ink-muted); letter-spacing: 2px; text-transform: uppercase; }
+  .verdict-value { font-family: var(--mono); font-size: 26px; font-weight: 700; color: var(--stop); letter-spacing: 3px; }
+  .verdict-desc { font-size: 14px; color: #b8b2c9; }
 
-  h2 { font-size: 20px; color: #f3f4f6; font-weight: 700; margin: 40px 0 12px; border-bottom: 1px solid #1f2937; padding-bottom: 8px; }
+  h2 { font-size: 20px; color: var(--ink); font-weight: 700; margin: 40px 0 12px; border-bottom: 1px solid var(--hairline); padding-bottom: 8px; }
   p { margin-bottom: 16px; }
   ul, ol { padding-left: 24px; margin-bottom: 16px; }
   li { margin-bottom: 6px; }
-  strong { color: #e5e7eb; }
-  em { color: #a78bfa; font-style: normal; }
+  strong { color: var(--ink); }
+  em { color: #cabdfa; font-style: normal; }
 
   table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; }
-  th { background: #111827; color: #9ca3af; font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 10px 14px; text-align: left; border-bottom: 2px solid #1f2937; }
-  td { padding: 10px 14px; border-bottom: 1px solid #1f2937; }
+  th { background: var(--surface); color: var(--ink-muted); font-family: var(--mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 10px 14px; text-align: left; border-bottom: 2px solid var(--hairline); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--hairline); }
   tr:last-child td { border-bottom: none; }
-  td:first-child { color: #9ca3af; }
-  .neg { color: #ef4444; font-weight: 700; font-family: 'Courier New', monospace; }
+  td:first-child { color: var(--ink-muted); }
+  .neg { color: var(--stop); font-weight: 700; font-family: var(--mono); }
 
   .methodology-box {
-    background: #111827; border-left: 3px solid #7c3aed;
-    border-radius: 0 8px 8px 0; padding: 20px 22px; margin: 20px 0; font-size: 15px;
+    background: var(--surface); border-left: 3px solid var(--accent-1);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0; padding: 20px 22px; margin: 20px 0; font-size: 15px;
   }
 
   .cta-block {
-    margin-top: 60px; padding: 28px; background: #111827;
-    border: 1px solid #1f2937; border-radius: 10px; text-align: center;
+    margin-top: 60px; padding: 28px; background: var(--surface);
+    border: 1px solid var(--hairline-strong); border-radius: var(--radius-md); text-align: center;
   }
-  .cta-block h3 { color: #f9fafb; font-size: 20px; margin-bottom: 10px; }
-  .cta-block p { color:#94a3b8; font-size: 15px; margin-bottom: 20px; }
+  .cta-block h3 { color: var(--ink); font-size: 20px; margin-bottom: 10px; }
+  .cta-block p { color: var(--ink-muted); font-size: 15px; margin-bottom: 20px; }
   .cta-btn {
-    display: inline-block; background: #7c3aed; color: #fff;
-    padding: 13px 30px; border-radius: 6px; text-decoration: none;
-    font-weight: 700; font-size: 15px;
-    font-family: 'Courier New', monospace; letter-spacing: 1px;
+    display: inline-block; background: linear-gradient(135deg,var(--accent-1),var(--accent-3)); color: #fff;
+    padding: 13px 30px; border-radius: var(--radius-sm); text-decoration: none;
+    font-weight: 600; font-size: 15px;
+    font-family: var(--mono); letter-spacing: 1px;
+    transition: transform .3s var(--ease);
   }
-  .cta-btn:hover { background: #6d28d9; }
-  .cta-price { display: block; font-size: 13px; color:#94a3b8; margin-top: 10px; font-family: 'Courier New', monospace; }
+  .cta-btn:hover { transform: translateY(-2px); }
+  .cta-price { display: block; font-size: 13px; color: var(--ink-muted); margin-top: 10px; font-family: var(--mono); }
 
-  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #1f2937; font-size: 13px; color:#94a3b8; font-family: 'Courier New', monospace; }
+  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--hairline); font-size: 13px; color: var(--ink-muted); font-family: var(--mono); }
 </style>
 </head>
 <body>
@@ -91,8 +104,8 @@
 
 <div class="report-meta">Sample Falsification Report · Pairs / Cointegration MR · 2026</div>
 <h1>Independent Crypto Strategy Falsification Report</h1>
-<p style="color:#94a3b8;font-size:15px;margin-bottom:0">
-  <strong style="color:#9ca3af">Strategy audited:</strong> Beta-hedged residual mean-reversion across a 17-symbol crypto-perp universe (1h timeframe). Enter when a cointegrated pair's hedged residual dislocates (z-score), exit on normalization.
+<p style="color:#948fa8;font-size:15px;margin-bottom:0">
+  <strong style="color:#948fa8">Strategy audited:</strong> Beta-hedged residual mean-reversion across a 17-symbol crypto-perp universe (1h timeframe). Enter when a cointegrated pair's hedged residual dislocates (z-score), exit on normalization.
 </p>
 
 <div class="verdict-bar">
