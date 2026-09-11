@@ -159,6 +159,7 @@ section{position:relative;z-index:1;}
 .url-hint{font-family:var(--mono);font-size:10px;color:var(--ink-muted);margin-top:var(--space-2);letter-spacing:.3px;}
 .url-status{font-size:12px;margin-top:var(--space-2);line-height:1.5;min-height:0;}
 .url-status.ok{color:var(--go);}
+.url-status.warn{color:var(--warn);font-weight:600;}
 .url-status.err{color:var(--stop);}
 .url-status.load{color:#cabdfa;}
 .field-divider{display:flex;align-items:center;gap:var(--space-3);margin:var(--space-4) 0 var(--space-3);color:var(--ink-muted);font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;}
@@ -835,14 +836,18 @@ async function fetchFromUrl(){
     const ta=document.getElementById('strategyInput');
     ta.value = ta.value.trim() ? (ta.value.trim()+'\n\n'+data.text) : data.text;
     ta.focus();
-    status.className='url-status ok';
-    // Cold transcriptions sometimes fall back to the caption on the first try; a retry
-    // usually returns the full spoken transcript from Supadata's cache.
-    const capHint = data.source==='caption'
-      ? ' — only the caption was available; click Fetch again for the full spoken transcript.'
-      : '';
-    status.textContent='✓ '+(data.note||'Text imported.')+capHint+' Review and edit below, then Analyze.';
-    setTimeout(()=>{ if(prog) prog.style.display='none'; }, 1400);
+    // Cold transcriptions sometimes fall back to a short caption on the first try (the
+    // AI speech-to-text job didn't finish in time); a retry a bit later usually returns
+    // the full spoken transcript once it's ready. This is NOT the same quality of input,
+    // so it gets its own persistent warning state — never the same "✓ ok" green as a real
+    // transcript, and it doesn't auto-hide, so it can't be missed by someone who glances
+    // past the status line.
+    const isCaption = data.source==='caption';
+    status.className='url-status '+(isCaption?'warn':'ok');
+    status.textContent = isCaption
+      ? '⚠ Only a short caption was found — not the full spoken transcript. The analysis below will be based on less detail. Click Fetch again in a moment for the full transcript, or edit the text yourself before analyzing.'
+      : '✓ '+(data.note||'Text imported.')+' Review and edit below, then Analyze.';
+    setTimeout(()=>{ if(prog) prog.style.display='none'; }, isCaption?2800:1400);
   }catch(e){
     clearInterval(tick);
     if(prog) prog.style.display='none';
