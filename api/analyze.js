@@ -36,11 +36,17 @@ module.exports = async function handler(req, res) {
     temperature: 0, // as deterministic as the API allows → same strategy, same verdict on repeat runs
     messages: [{
       role: 'user',
+      // The slice below matches the 20000-char hard validation ceiling above (not a
+      // separate, lower limit) — it used to be 2500, which silently cut long-video
+      // transcripts (imported via /api/extract, up to 12000 chars) well before the model
+      // ever saw them, even though the textarea showed the full text. Keeping this at the
+      // same number as the request-level cap means nothing accepted by validation is ever
+      // truncated a second time going into the prompt.
       content: `You are VEKTOR — an independent crypto strategy falsification service used by serious traders to screen strategies before deployment. Give a preliminary, qualitative RISK SCREEN. This is a judgement based only on the description — NOT a computed statistical test. Do NOT invent p-values, Sharpe ratios, drawdowns or trade counts, and do NOT claim any statistic was calculated.
 
 Strategy submitted:
 """
-${strategy.slice(0, 2500)}
+${strategy.slice(0, 20000)}
 """
 
 Reply with ONLY valid JSON — no markdown, no explanation outside the JSON:

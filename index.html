@@ -831,7 +831,14 @@ async function fetchFromUrl(){
   function showResult(data){
     if(bar) bar.style.width='100%';
     const ta=document.getElementById('strategyInput');
-    ta.value = ta.value.trim() ? (ta.value.trim()+'\n\n'+data.text) : data.text;
+    const existing=ta.value.trim();
+    const incoming=(data.text||'').trim();
+    // Appending is intentional (combining a second source on top of a first), but a
+    // second Fetch click on the SAME link (e.g. after a result that looked cut off)
+    // returns the same text again — appending it then would paste it in twice. If the
+    // incoming text is already present verbatim, this is a refetch/refresh of the same
+    // source, so replace rather than duplicate.
+    ta.value = (existing && !existing.includes(incoming)) ? (existing+'\n\n'+incoming) : incoming;
     ta.focus();
     // Cold transcriptions can still end in a short caption (if Supadata itself fails the
     // job, not just times out). This is NOT the same quality of input, so it gets its own

@@ -231,7 +231,12 @@ module.exports = async function handler(req, res) {
   }
 
   // Generate report
-  const cleanStrategy = strategy.slice(0, 3000);
+  // Matches the 20000-char hard validation ceiling above (not a separate, lower cap) —
+  // this used to be 3000, which silently truncated long-video transcripts (imported via
+  // /api/extract, up to 12000 chars) before the paid model ever saw them, even though the
+  // customer's submitted text looked complete. Keeping this equal to the request-level
+  // cap means nothing that passed validation gets truncated a second time here.
+  const cleanStrategy = strategy.slice(0, 20000);
   let report;
   let jsonWasRepaired = false;
   try {
