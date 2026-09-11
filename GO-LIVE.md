@@ -17,7 +17,7 @@ Vercel → vektor-site → Settings → Environment Variables. After adding/chan
 | `EMAIL_FROM` | email sender | e.g. `VEKTOR <audit@yourdomain.com>` — must be a **verified Resend domain** or customers get nothing |
 | `OWNER_EMAIL` | payment/report copy to you | defaults to laurin85@gmail.com |
 | `SUPADATA_API_KEY` | video/reel transcripts | should already be set |
-| `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | rate limiting **and now order tracking** | free Upstash Redis DB. Without it: rate limiting is a no-op (as before) AND paid orders are no longer logged anywhere — `/admin` will always show empty. Set this before going live. |
+| `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` (or `KV_REST_API_URL` + `KV_REST_API_TOKEN` — see note) | rate limiting **and now order tracking** | free Upstash Redis DB. Without it: rate limiting is a no-op (as before) AND paid orders are no longer logged anywhere — `/admin` will always show empty. Set this before going live. **Connecting Upstash via the Vercel Marketplace (Storage tab → Browse Marketplace) commonly names these `KV_REST_API_URL`/`KV_REST_API_TOKEN` instead** (the old "Vercel KV" naming — it was always Upstash Redis underneath). `lib/redis-client.js` checks both names automatically, so either path works without renaming anything — just confirm *one* of the two pairs actually appears in Settings → Environment Variables. |
 | `ADMIN_TOKEN` | `/admin` order list | any long random string (32+ chars, e.g. `openssl rand -hex 32`). Without it, `/api/admin/orders` returns 503 (fails closed, not open). |
 
 ---
