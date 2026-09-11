@@ -1,6 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const Stripe = require('stripe');
 const { Resend } = require('resend');
+const { jsonrepair } = require('jsonrepair');
 const { buildEmail } = require('../lib/report-email');
 const { rateLimit } = require('../lib/ratelimit');
 const { saveOrder } = require('../lib/orders');
@@ -235,8 +236,23 @@ module.exports = async function handler(req, res) {
     const textBlock = msg.content.find((b) => b.type === 'text');
     const raw = (textBlock ? textBlock.text : '').trim();
     const match = raw.match(/\{[\s\S]*\}/);
-    report = match ? JSON.parse(match[0]) : null;
-    if (!report) throw new Error('Invalid JSON from model');
+    if (!match) throw new Error('No JSON object found in model response');
+    try {
+      report = JSON.parse(match[0]);
+    } catch (parseErr) {
+      // The model occasionally emits a syntax error inside a free-text field (almost
+      // always an unescaped quote inside a "finding"/"summary" string it's quoting the
+      // submitted strategy in) — a real customer hit exactly this. jsonrepair fixes the
+      // SYNTAX so the paid order still gets a report instead of nothing; the specific
+      // field that had the stray character may end up slightly truncated or split at
+      // that point, which is an acceptable trade against a hard failure on an
+      // already-paid $99 order. The strict-parse path above is unaffected for the
+      // normal case (well-formed JSON), so this only ever engages on a response that
+      // would otherwise have failed outright.
+      console.error('generate-report: JSON.parse failed, attempting repair:', parseErr.message);
+      report = JSON.parse(jsonrepair(match[0]));
+    }
+    if (!report || typeof report !== 'object') throw new Error('Invalid JSON from model');
     // Enforce the edge_source enum server-side: off-enum -> none-identifiable, so
     // the report/email UI can never paint an unknown class green.
     if (report.edge_analysis) {
