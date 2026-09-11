@@ -36,13 +36,20 @@ tr:hover td{background:#0e0c17;}
 .p-generating{background:rgba(251,191,36,.12);color:#fbbf24;}
 .p-failed{background:rgba(248,113,113,.14);color:#f87171;}
 .p-unknown{background:rgba(148,143,168,.14);color:#948fa8;}
-.verdict{font-size:11px;color:#d8d3e6;}
+.verdict-pill{display:inline-block;font-family:ui-monospace,monospace;font-size:10px;font-weight:700;letter-spacing:.5px;padding:2px 8px;border-radius:100px;white-space:nowrap;}
+.v-go{background:rgba(52,211,153,.16);color:#34d399;}
+.v-rework{background:rgba(251,191,36,.14);color:#fbbf24;}
+.v-stop{background:rgba(148,143,168,.12);color:#948fa8;}
+.v-none{color:#5e5876;}
 .err-text{color:#f87171;font-size:11.5px;max-width:260px;}
 .strategy-toggle{color:#cabdfa;font-size:11px;cursor:pointer;text-decoration:underline;background:none;border:none;padding:0;font-family:inherit;}
 .strategy-row{display:none;background:#0a0916;}
 .strategy-row.show{display:table-row;}
 .strategy-row td{white-space:pre-wrap;color:#c9c4dc;font-size:12px;line-height:1.6;padding:14px 10px;}
 .empty{color:#948fa8;font-size:13px;padding:40px 0;text-align:center;}
+tr.promising td{background:rgba(52,211,153,.04);}
+.filter-btn{background:#211b3f;border:1px solid rgba(139,92,246,.4);color:#cabdfa;padding:8px 16px;border-radius:7px;font-size:12px;cursor:pointer;}
+.filter-btn.active{background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.5);color:#34d399;}
 </style>
 </head>
 <body>
@@ -62,6 +69,8 @@ tr:hover td{background:#0e0c17;}
     <div class="sub">Order admin · last 50 orders, most recent first</div>
     <div class="toolbar">
       <span class="count" id="count"></span>
+      <span style="flex:1"></span>
+      <button class="filter-btn" id="promisingBtn" onclick="togglePromising()">★ Promising only (GO)</button>
       <button onclick="load()">↻ Refresh</button>
     </div>
     <div id="tableWrap"></div>
@@ -85,6 +94,22 @@ function pillClass(status) {
   if (status === 'generating') return 'p-generating';
   if (status === 'failed') return 'p-failed';
   return 'p-unknown';
+}
+// GO_CONDITIONAL = "no obvious fatal flaw" — the ones worth the owner's own follow-up
+// look. REWORK is a maybe; STOP/unknown are not flagged as promising.
+function verdictInfo(v) {
+  if (v === 'GO_CONDITIONAL') return { cls: 'v-go', label: 'GO — CONDITIONAL', promising: true };
+  if (v === 'REWORK') return { cls: 'v-rework', label: 'REWORK', promising: false };
+  if (v === 'STOP') return { cls: 'v-stop', label: 'STOP', promising: false };
+  return { cls: 'v-none', label: v || '—', promising: false };
+}
+
+let _allOrders = [];
+let _promisingOnly = false;
+function togglePromising() {
+  _promisingOnly = !_promisingOnly;
+  document.getElementById('promisingBtn').classList.toggle('active', _promisingOnly);
+  renderTable();
 }
 
 async function tryToken() {
@@ -133,22 +158,42 @@ function toggleStrategy(id) {
 }
 
 function renderOrders(orders) {
-  document.getElementById('count').textContent = orders.length + ' order' + (orders.length === 1 ? '' : 's');
+  _allOrders = orders;
+  renderTable();
+}
+
+function renderTable() {
+  const all = _allOrders;
+  const promisingCount = all.filter((o) => verdictInfo(o.verdict).promising).length;
+  const orders = _promisingOnly ? all.filter((o) => verdictInfo(o.verdict).promising) : all;
+
+  document.getElementById('count').textContent =
+    orders.length + ' order' + (orders.length === 1 ? '' : 's') +
+    (promisingCount ? ` · ${promisingCount} promising (GO)` : '');
+
   const wrap = document.getElementById('tableWrap');
-  if (!orders.length) { wrap.innerHTML = '<div class="empty">No orders yet.</div>'; return; }
+  if (!orders.length) {
+    wrap.innerHTML = '<div class="empty">' + (_promisingOnly ? 'No promising (GO_CONDITIONAL) strategies yet.' : 'No orders yet.') + '</div>';
+    return;
+  }
 
   const rows = orders.map((o, i) => {
     const id = 'row' + i;
+    const vi = verdictInfo(o.verdict);
     const strategyBits = [];
     if (o.strategy) strategyBits.push('<b style="color:#cabdfa;">Strategy:</b><br>' + esc(o.strategy));
     if (o.report && o.report.bottom_line) strategyBits.push('<br><br><b style="color:#cabdfa;">Bottom line:</b><br>' + esc(o.report.bottom_line));
+    if (o.report && o.report.edge_analysis) {
+      const ea = o.report.edge_analysis;
+      strategyBits.push('<br><br><b style="color:#cabdfa;">Edge source:</b> ' + esc(ea.edge_source || '—') + ' — ' + esc(ea.counterparty || ''));
+    }
     return `
-      <tr>
+      <tr class="${vi.promising ? 'promising' : ''}">
         <td class="mono">${esc(fmtDate(o.created_at))}</td>
         <td class="mono" title="${esc(o.session_id)}">${esc((o.session_id||'').slice(0,18))}…</td>
         <td>${esc(o.email || '—')}</td>
         <td><span class="pill ${pillClass(o.status)}">${esc(o.status || 'unknown')}</span></td>
-        <td class="verdict">${esc(o.verdict || '—')}</td>
+        <td><span class="verdict-pill ${vi.cls}">${vi.promising ? '★ ' : ''}${esc(vi.label)}</span></td>
         <td class="err-text">${esc(o.error || (o.email_sent_customer === false ? 'customer email not sent' : ''))}</td>
         <td><button class="strategy-toggle" onclick="toggleStrategy('${id}')">view</button></td>
       </tr>
