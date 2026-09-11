@@ -3,6 +3,7 @@ const Stripe = require('stripe');
 const { Resend } = require('resend');
 const { buildEmail } = require('../lib/report-email');
 const { rateLimit } = require('../lib/ratelimit');
+const { saveOrder } = require('../lib/orders');
 
 function makeAuditId(sessionId) {
   const d = new Date();
@@ -10,6 +11,51 @@ function makeAuditId(sessionId) {
   const src = (sessionId || '').replace(/[^a-zA-Z0-9]/g, '');
   const tail = (src.slice(-4) || String(Math.floor(1000 + Math.random() * 9000))).toUpperCase();
   return `VK-${ymd}-${tail}`;
+}
+
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Alerts the owner immediately on any failure, with enough context (session_id +
+// full strategy text) to recover the order by hand without digging through Stripe,
+// Resend, and 1-hour-retention Vercel logs first.
+async function notifyOwnerFailure({ sessionId, auditId, email, strategy, stage, error }) {
+  if (!process.env.RESEND_API_KEY) return;
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const from = process.env.EMAIL_FROM || 'VEKTOR System <onboarding@resend.dev>';
+    const owner = process.env.OWNER_EMAIL || 'laurin85@gmail.com';
+    const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,'Segoe UI',sans-serif;background:#050508;color:#e2e8f0;padding:32px;">
+      <div style="max-width:600px;margin:0 auto;">
+        <div style="font-family:monospace;font-size:13px;font-weight:800;letter-spacing:4px;color:#f87171;margin-bottom:20px;">VEKTOR · REPORT FAILED</div>
+        <div style="background:#0a0a16;border:1px solid rgba(248,113,113,.3);border-radius:12px;padding:22px;font-size:14px;color:#cbd5e1;line-height:1.9;">
+          <b>Stage:</b> ${escHtml(stage)}<br>
+          <b>Session:</b> <span style="font-family:monospace;font-size:12px;color:#94a3b8;">${escHtml(sessionId)}</span><br>
+          ${auditId ? `<b>Audit ID:</b> ${escHtml(auditId)}<br>` : ''}
+          <b>Customer:</b> ${escHtml(email || 'unknown')}<br>
+          <b>Error:</b> ${escHtml(error)}
+        </div>
+        <div style="margin-top:18px;">
+          <div style="font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Submitted strategy</div>
+          <div style="background:#080812;border:1px solid #1a1a2e;border-radius:8px;padding:14px 16px;font-size:13px;color:#94a3b8;line-height:1.6;white-space:pre-wrap;">${escHtml(strategy || '(not available)')}</div>
+        </div>
+        <div style="font-size:12px;color:#64748b;line-height:1.7;margin-top:18px;">
+          The payment was already captured — this only affects delivery. To recover: check
+          <code>/admin</code> for this session, or POST the session_id + strategy above to
+          /api/generate-report by hand (works up to 48h after purchase).
+        </div>
+      </div>
+    </body></html>`;
+    await resend.emails.send({
+      from,
+      to: owner,
+      subject: `[VEKTOR] ⚠️ Report failed (${stage}) — ${email || 'unknown email'}`,
+      html,
+    });
+  } catch (e) {
+    console.error('notifyOwnerFailure error:', e.message);
+  }
 }
 
 const REPORT_PROMPT = (strategy) => `You are VEKTOR, an independent crypto strategy falsification service. Produce a rigorous, brutally honest FALSIFICATION REVIEW of the strategy below. This is a structured red-team of failure modes — NOT a claim that statistics were computed.
@@ -126,6 +172,7 @@ module.exports = async function handler(req, res) {
     return res.status(503).json({ error: 'Payment verification not configured.' });
   }
   let customerEmail = null;
+  const auditId = makeAuditId(session_id);
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     const session = await stripe.checkout.sessions.retrieve(session_id);
@@ -145,6 +192,20 @@ module.exports = async function handler(req, res) {
       return res.status(403).json({ error: 'This checkout link has expired. Contact laurin85@gmail.com to re-send your report.' });
     }
     customerEmail = session.customer_details && session.customer_details.email;
+
+    // Order confirmed real and paid — start tracking it now, before the slow part,
+    // so a crash mid-generation still leaves a durable record instead of nothing.
+    // (Fails soft if Upstash isn't configured; never blocks the response either way.)
+    await saveOrder(session_id, {
+      audit_id: auditId,
+      email: customerEmail,
+      amount_total: session.amount_total,
+      currency: session.currency,
+      client_reference_id: session.client_reference_id || null,
+      created_at: session.created ? new Date(session.created * 1000).toISOString() : undefined,
+      strategy,
+      status: 'generating',
+    });
   } catch (err) {
     console.error('Stripe error:', err.message);
     return res.status(403).json({ error: 'Could not verify payment. If you paid, contact laurin85@gmail.com.' });
@@ -186,6 +247,8 @@ module.exports = async function handler(req, res) {
     }
   } catch (err) {
     console.error('generate-report error:', err.message);
+    await saveOrder(session_id, { status: 'failed', error: err.message });
+    await notifyOwnerFailure({ sessionId: session_id, auditId, email: customerEmail, strategy, stage: 'generation', error: err.message });
     return res.status(500).json({ error: 'Report generation failed. Please try refreshing the page.' });
   }
 
@@ -194,9 +257,11 @@ module.exports = async function handler(req, res) {
   // any await AFTER res.json() may never run — that's why the payment webhook mail
   // arrived but the report mail didn't. Report generation already took ~20s, so the
   // extra ~1-2s here is negligible and guarantees delivery.
+  let emailSentCustomer = false;
+  let emailSentOwner = false;
+  let emailError = null;
   if (process.env.RESEND_API_KEY) {
     try {
-      const auditId = makeAuditId(session_id);
       const html = buildEmail(cleanStrategy, report, auditId);
       const resend = new Resend(process.env.RESEND_API_KEY);
       const verdict = report.verdict.replace(/_/g, ' ');
@@ -211,6 +276,7 @@ module.exports = async function handler(req, res) {
           subject: `${report.verdict_emoji} Your VEKTOR Strategy Audit — ${verdict} (#${auditId})`,
           html,
         });
+        emailSentCustomer = true;
       }
       await resend.emails.send({
         from,
@@ -218,11 +284,28 @@ module.exports = async function handler(req, res) {
         subject: `[VEKTOR] Audit #${auditId} — ${report.verdict} — ${customerEmail || 'unknown email'}`,
         html,
       });
+      emailSentOwner = true;
     } catch (err) {
       console.error('Email send error (non-fatal):', err.message);
+      emailError = err.message;
     }
   }
 
-  // Respond last, once the emails have been dispatched.
+  // Report exists and is returned to the browser either way, but the emailed copy —
+  // the thing the page promises — didn't go out. Flag it so it isn't only discoverable
+  // if the customer happens to notice and mention it later.
+  await saveOrder(session_id, {
+    status: 'delivered',
+    verdict: report.verdict,
+    report,
+    email_sent_customer: emailSentCustomer,
+    email_sent_owner: emailSentOwner,
+    email_error: emailError,
+  });
+  if (!emailSentCustomer && customerEmail) {
+    await notifyOwnerFailure({ sessionId: session_id, auditId, email: customerEmail, strategy, stage: 'email delivery', error: emailError || 'customer email not sent (RESEND_API_KEY missing?)' });
+  }
+
+  // Respond last, once emails + the order record have been dispatched.
   res.json({ report });
 };

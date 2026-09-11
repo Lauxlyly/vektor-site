@@ -408,6 +408,7 @@ async function fetchReport(strategy) {
     document.getElementById('errorMsg').textContent = (res.data && res.data.error) || 'Unknown error. Contact laurin85@gmail.com.';
     show('stateError'); return;
   }
+  localStorage.removeItem('vektor_strategy'); // only clear once we actually have a report
   setTimeout(() => renderReport(res.data.report), 500);
 }
 
@@ -649,7 +650,10 @@ function copyVerdict() {
     show('stateInput');
     return;
   }
-  localStorage.removeItem('vektor_strategy');
+  // Keep the strategy in localStorage until we KNOW generation succeeded — it's the
+  // only way to retry a failed report (reload this page) without re-typing the
+  // strategy. Clearing it unconditionally here, before the fetch even started, was a
+  // bug: every reload, success or failure, permanently lost it.
   fetchReport(strategy);
 })();
 </script>
