@@ -289,10 +289,20 @@ function _refCode() {
 // notifyOwnerFailure(). Every other code is honest that nobody is automatically in the
 // loop yet, and tells the customer how to get a human involved.
 const ERR_STATES = {
+  // Attempts 1-2 on the same paid session: usually a one-off blip, and each "Try again"
+  // click is its own fresh, full-budget request — no owner alert yet, nothing to
+  // apologise for at length. Only once generate-report.js sees this session cross
+  // ALERT_THRESHOLD does it actually notify the owner and return the fuller code below.
+  generation_failed_retry: {
+    icon: '⚠️',
+    head: "That didn't quite work.",
+    body: 'Report generation hit a snag — this is usually temporary. Your payment is safe either way. Click Try again.',
+    refund: false,
+  },
   generation_failed_owner_alerted: {
     icon: '✓',
     head: 'Payment confirmed. Your order is safe.',
-    body: "Your report didn't finish generating, but your payment is not lost and you have not been charged twice. The owner has been alerted and will deliver your report or offer a refund within 24 hours — usually the same day.",
+    body: "Your report didn't finish generating after a few tries, but your payment is not lost and you have not been charged twice. The owner has been alerted and will deliver your report or offer a refund within 24 hours — usually the same day.",
     refund: true,
   },
   network: {

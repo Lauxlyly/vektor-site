@@ -4,7 +4,15 @@ const { Resend } = require('resend');
 const { jsonrepair } = require('jsonrepair');
 const { buildEmail } = require('../lib/report-email');
 const { rateLimit } = require('../lib/ratelimit');
-const { saveOrder } = require('../lib/orders');
+const { saveOrder, getOrder, configured: ordersConfigured } = require('../lib/orders');
+
+// How many failed generation attempts on the SAME paid session before we actually
+// notify the owner and tell the customer so. A single glitch (transient API hiccup)
+// usually clears on a client-initiated retry — see success.html's "Try again" button,
+// each click is its own fresh ~60s request, not a risky same-request retry loop — so
+// alerting a human on attempt 1 would often be a false alarm. Escalate for real once
+// it's clearly not self-healing.
+const ALERT_THRESHOLD = 3;
 
 function makeAuditId(sessionId) {
   const d = new Date();
@@ -113,6 +121,9 @@ Surfacing: emit these as the last four entries of tests[] using exactly the name
 
 Multiple-Testing / Selection-Bias Check (finding guidance): In addition to asking for the number of variants tried and whether selection was pre-registered, if the submission mentions a permutation or bootstrap null test alongside a stated variant count, require the number of null draws and compare the minimum achievable honest p-value, approximately 1/(draws + 1), with the corrected significance bar such as alpha / variants. If the draw count is too small to ever clear the corrected bar, state that the null test is underpowered for the claimed correction. Do not invent the variant count, alpha, or draw count; if any are missing, ask for them.
 
+# JSON VALIDITY (a real paid order fails outright if this is wrong — treat it as a hard requirement, not a style note)
+Every string value must be strictly valid JSON. If you quote any phrase from the submission verbatim inside a string (e.g. a claimed "80% win rate"), you MUST escape the inner double-quotes as \" — e.g. "...claims a \"80% win rate\" with..." — or rephrase to avoid nested quotation marks entirely (often clearer anyway: "...claims an 80% win rate..."). Also escape any literal newline inside a string as \n. Prefer paraphrasing over direct quotation when in doubt.
+
 Return ONLY a valid JSON object — no markdown, no extra text:
 {
   "verdict": "STOP" | "REWORK" | "GO_CONDITIONAL",
@@ -173,6 +184,7 @@ module.exports = async function handler(req, res) {
     return res.status(503).json({ code: 'config_error', error: 'Payment verification not configured.' });
   }
   let customerEmail = null;
+  let priorAttempts = 0;
   const auditId = makeAuditId(session_id);
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -193,6 +205,12 @@ module.exports = async function handler(req, res) {
       return res.status(403).json({ code: 'session_expired', error: 'This checkout link has expired. Contact laurin85@gmail.com to re-send your report.' });
     }
     customerEmail = session.customer_details && session.customer_details.email;
+
+    // How many times has generation already failed for this exact session? Each
+    // "Try again" click is a brand-new request (not a retry within this one), so this
+    // is the only way to know we're on attempt 2 or 3, not attempt 1.
+    const existingOrder = await getOrder(session_id);
+    priorAttempts = (existingOrder && existingOrder.attempts) || 0;
 
     // Order confirmed real and paid — start tracking it now, before the slow part,
     // so a crash mid-generation still leaves a durable record instead of nothing.
@@ -215,6 +233,7 @@ module.exports = async function handler(req, res) {
   // Generate report
   const cleanStrategy = strategy.slice(0, 3000);
   let report;
+  let jsonWasRepaired = false;
   try {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     // Sonnet 5, not Opus 5. This runs inside a 60s Vercel function; Opus 5 (adaptive
@@ -251,6 +270,7 @@ module.exports = async function handler(req, res) {
       // would otherwise have failed outright.
       console.error('generate-report: JSON.parse failed, attempting repair:', parseErr.message);
       report = JSON.parse(jsonrepair(match[0]));
+      jsonWasRepaired = true; // surfaced in the order record (/admin) so a rising rate is visible
     }
     if (!report || typeof report !== 'object') throw new Error('Invalid JSON from model');
     // Enforce the edge_source enum server-side: off-enum -> none-identifiable, so
@@ -262,13 +282,23 @@ module.exports = async function handler(req, res) {
       }
     }
   } catch (err) {
-    console.error('generate-report error:', err.message);
-    await saveOrder(session_id, { status: 'failed', error: err.message });
-    await notifyOwnerFailure({ sessionId: session_id, auditId, email: customerEmail, strategy, stage: 'generation', error: err.message });
-    // code:'generation_failed_owner_alerted' is a promise, not a label — only ever send
-    // it on a path that actually just called notifyOwnerFailure above. success.html's
-    // error screen shows "the owner has been alerted" ONLY for this exact code.
-    return res.status(500).json({ code: 'generation_failed_owner_alerted', error: 'Report generation failed. Please try refreshing the page.' });
+    const attempts = priorAttempts + 1;
+    console.error(`generate-report error (attempt ${attempts}):`, err.message);
+    await saveOrder(session_id, { status: 'failed', error: err.message, attempts });
+
+    // Escalate to the owner only once it's clearly not a one-off blip — the customer's
+    // own "Try again" clicks are the first line of defense (each is a fresh, full-budget
+    // request, not a risky same-request retry). If Upstash isn't configured we can't
+    // count attempts across requests at all, so fail toward MORE alerting, not silently
+    // less: treat every failure as threshold-crossing in that case.
+    const shouldAlertOwner = !ordersConfigured() || attempts >= ALERT_THRESHOLD;
+    if (shouldAlertOwner) {
+      await notifyOwnerFailure({ sessionId: session_id, auditId, email: customerEmail, strategy, stage: 'generation', error: err.message });
+      // code:'generation_failed_owner_alerted' is a promise, not a label — only ever
+      // sent on a path that actually just called notifyOwnerFailure above.
+      return res.status(500).json({ code: 'generation_failed_owner_alerted', error: 'Report generation failed. Please try refreshing the page.' });
+    }
+    return res.status(500).json({ code: 'generation_failed_retry', error: 'Report generation failed. Please try again.' });
   }
 
   // Email the report to the customer + owner BEFORE sending the HTTP response.
@@ -317,6 +347,7 @@ module.exports = async function handler(req, res) {
     status: 'delivered',
     verdict: report.verdict,
     report,
+    json_repaired: jsonWasRepaired, // visible in /admin — a rising rate is worth investigating even though delivery still succeeded
     email_sent_customer: emailSentCustomer,
     email_sent_owner: emailSentOwner,
     email_error: emailError,
